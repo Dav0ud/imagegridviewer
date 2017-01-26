@@ -5,7 +5,8 @@ This is an image grid viewer
 First argument must be the prefix path that is identical for the whole set
 of images.
 
-The second argument the 
+The second argument the text file which contains a list of suffixes separated by end lines.
+If no second argument is provided, it looks into "./igridvu_suffix.txt" per default.
 
 @author Davoud Shahlaei
 """
