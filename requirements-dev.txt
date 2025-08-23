@@ -1,0 +1,4 @@
+# Pinning versions ensures a consistent and reproducible testing environment.
+# These versions are based on the FOSS-BOM.md file.
+pytest==8.4.1
+pytest-qt==4.5.0

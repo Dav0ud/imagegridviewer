@@ -1,0 +1,47 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+build/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+testscene/
+
+# PyInstaller
+*.spec
+
+# macOS Application Bundles (from your build scripts)
+*.app/
+
+# Unit test / coverage reports
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Python Virtual Environments
+venv/
+.venv/
+
+# IDE / Editor specific
+.vscode/
+.idea/
+
+# OS specific files
+*.DS_Store
