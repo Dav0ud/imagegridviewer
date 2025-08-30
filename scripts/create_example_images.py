@@ -79,4 +79,4 @@ if __name__ == "__main__":
     create_images()
     create_suffix_file()
     print(f"\nSetup complete. Example images are in '{SUBDIR}/'.")
-    print(f"You can now run the example from the README: python3 igridvu.py {PREFIX}")
+    print(f"You can now run the example from the README: python3 src/igridvu.py {PREFIX}")
