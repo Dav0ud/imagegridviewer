@@ -14,12 +14,12 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from src.igridvu import cli
+from igridvu import cli
 
 
-@patch('src.igridvu.cli.QApplication')
-@patch('src.igridvu.cli.ImageGrid')
-@patch('src.igridvu.cli.sys.exit')
+@patch('igridvu.cli.QApplication')
+@patch('igridvu.cli.ImageGrid')
+@patch('igridvu.cli.sys.exit')
 def test_cli_successful_run(mock_exit, mock_image_grid, mock_qapp, tmp_path, monkeypatch):
     """Tests a standard successful run with explicit arguments."""
     # Arrange
@@ -49,9 +49,9 @@ def test_cli_successful_run(mock_exit, mock_image_grid, mock_qapp, tmp_path, mon
     mock_exit.assert_called_once_with(0)
 
 
-@patch('src.igridvu.cli.QApplication')
-@patch('src.igridvu.cli.ImageGrid')
-@patch('src.igridvu.cli.sys.exit')
+@patch('igridvu.cli.QApplication')
+@patch('igridvu.cli.ImageGrid')
+@patch('igridvu.cli.sys.exit')
 def test_cli_default_suffix_file(mock_exit, mock_image_grid, mock_qapp, tmp_path, monkeypatch):
     """Tests that the CLI correctly finds the default suffix file."""
     # Arrange
@@ -80,8 +80,8 @@ def test_cli_default_suffix_file(mock_exit, mock_image_grid, mock_qapp, tmp_path
     )
 
 
-@patch('src.igridvu.cli.QApplication')
-@patch('src.igridvu.cli.ImageGrid')
+@patch('igridvu.cli.QApplication')
+@patch('igridvu.cli.ImageGrid')
 def test_cli_suffix_file_not_found(mock_image_grid, mock_qapp, tmp_path, monkeypatch, capsys):
     """Tests that the CLI exits gracefully if the suffix file is not found."""
     # Arrange
@@ -101,8 +101,8 @@ def test_cli_suffix_file_not_found(mock_image_grid, mock_qapp, tmp_path, monkeyp
     mock_image_grid.assert_not_called()
 
 
-@patch('src.igridvu.cli.QApplication')
-@patch('src.igridvu.cli.ImageGrid')
+@patch('igridvu.cli.QApplication')
+@patch('igridvu.cli.ImageGrid')
 def test_cli_empty_suffix_file(mock_image_grid, mock_qapp, tmp_path, monkeypatch, capsys):
     """Tests that the CLI exits gracefully if the suffix file is empty."""
     # Arrange
@@ -123,9 +123,9 @@ def test_cli_empty_suffix_file(mock_image_grid, mock_qapp, tmp_path, monkeypatch
     mock_image_grid.assert_not_called()
 
 
-@patch('src.igridvu.cli.QApplication')
-@patch('src.igridvu.cli.ImageGrid')
-@patch('src.igridvu.cli.sys.exit')
+@patch('igridvu.cli.QApplication')
+@patch('igridvu.cli.ImageGrid')
+@patch('igridvu.cli.sys.exit')
 def test_cli_max_images_limit(mock_exit, mock_image_grid, mock_qapp, tmp_path, monkeypatch, capsys):
     """Tests that the number of images is limited and a warning is printed."""
     # Arrange
@@ -153,9 +153,9 @@ def test_cli_max_images_limit(mock_exit, mock_image_grid, mock_qapp, tmp_path, m
     assert called_kwargs['list_of_suffix'] == suffixes[:cli.MAX_IMAGES]
 
 
-@patch('src.igridvu.cli.QApplication')
-@patch('src.igridvu.cli.ImageGrid')
-@patch('src.igridvu.cli.sys.exit')
+@patch('igridvu.cli.QApplication')
+@patch('igridvu.cli.ImageGrid')
+@patch('igridvu.cli.sys.exit')
 def test_cli_custom_columns(mock_exit, mock_image_grid, mock_qapp, tmp_path, monkeypatch):
     """Tests that the --columns argument is correctly passed to ImageGrid."""
     # Arrange

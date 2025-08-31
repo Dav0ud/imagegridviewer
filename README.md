@@ -5,8 +5,8 @@
 
 A lightweight, Python-based desktop tool for displaying a grid of images. It is designed to help researchers and developers quickly visualize and compare multiple images—such as different modalities of a scene or outputs of an algorithm—in a single, synchronized window.
 
-![Image Grid Viewer Screenshot](https://via.placeholder.com/800x450.png?text=App+Screenshot+or+GIF+Here)
-*(A screenshot or GIF of the application in action would be great here!)*
+![Image Grid Viewer Screenshot](assets/app_screenshot.png)
+*(A screenshot of the application in action.)*
 
 ---
 
@@ -15,7 +15,7 @@ A lightweight, Python-based desktop tool for displaying a grid of images. It is 
 -   **Synchronized Grid:** Display multiple images in a scrollable grid. Zooming and panning are synchronized across all images for precise, pixel-level comparison.
 -   **Synchronized Pixel Inspector:** Move your cursor over any image to see the pixel coordinates and RGB values for that location across *all* images in the grid, displayed live in the status bar.
 -   **Persistent Labels:** Each image view is overlaid with a clear, non-zooming label derived from its filename, so you always know which modality you're looking at.
--   **Customizable Layout:** Easily adjust the number of grid columns via a command-line argument.
+-   **Customizable Layout:** Easily adjust the number of grid columns via the `--columns` argument.
 -   **Robust Error Handling:** Gracefully handles common issues like missing files, permission errors, and unsupported formats by displaying an informative message in the respective grid cell without crashing.
 -   **Simple CLI:** Launch the viewer directly from your terminal with a straightforward command-line interface.
 
@@ -76,42 +76,24 @@ igridvu <image_prefix> [suffix_file] [--columns N]
 *   `--columns N`, `-c N`: (Optional) Sets the number of columns in the grid. Defaults to 4.
 
 ### Example:
-
 Imagine you have images representing different illumination components of a scene, all located in a `testscene` directory: `testscene/scene1_diffuse.png`, `testscene/scene1_specular.png`, etc.
 
-1.  Your suffix file (`igridvu_suffix.txt`) lists the component names:
+1.  Create a suffix file named `igridvu_suffix.txt` in the `testscene` directory that lists the unique parts of the filenames:
     ```text
     diffuse.png
     specular.png
     shadow.png
     ...
     ```
-
-2.  Run the viewer, providing the path and common prefix
-
-2.1.  If the package is installed.
-
-```bash
-# The prefix includes the directory path
-igridvu testscene/scene1_
-```
-
-```bash
-# Display in a 3-column grid
-igridvu testscene/scene1_ --columns 3
-```
-
-2.2. If the package is not installed or you want to refer to the cli script directly.
-
-```bash
-# The prefix includes the directory path
-python3 -m src.igridvu.cli testscene/scene1_
-```
-
-```bash
-# Display in a 3-column grid
-python3 -m src.igridvu.cli testscene/scene1_ --columns 3
-```
+2.  Run the viewer from your terminal, providing the path and common prefix. The tool will automatically find the suffix file.
+    ```bash
+    # The prefix includes the directory path
+    igridvu testscene/scene1_
+    ```
+    To display the images in a 3-column grid instead of the default 4:
+    ```bash
+    igridvu testscene/scene1_ --columns 3
+    ```
 
 
 ### Interaction
@@ -127,11 +109,11 @@ python3 -m src.igridvu.cli testscene/scene1_ --columns 3
 
 ## Testing
 
-This project uses `pytest`. To run the test suite, first install the development dependencies and then run pytest.
+This project uses `pytest`. To run the test suite, ensure you have installed the project in editable mode with the `[dev]` extra, then run `pytest` from the project root:
 
 ```bash
-# Make sure you have installed development dependencies
-python3 -m pytest
+# This command will discover and run all tests
+pytest
 ```
 
 ---
@@ -139,6 +121,7 @@ python3 -m pytest
 ## File Structure
 - `pyproject.toml`: The heart of the project, defining metadata, dependencies, and entry points.
 - `src/igridvu/`: The main application source code package.
+- `pytest.ini`: Configures the `pytest` test runner, ensuring it can find the source code in `src/`.
   - `cli.py`: The command-line entry point.
   - `main_window.py`: Defines the main `QMainWindow`, orchestrates the grid layout, and handles view synchronization and status bar updates.
   - `zoomable_view.py`: Defines the custom `QGraphicsView` widget responsible for loading, displaying, and interacting with a single image (zoom, pan, pixel inspection).

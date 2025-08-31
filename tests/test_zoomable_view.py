@@ -16,7 +16,7 @@ from PySide6.QtCore import Qt, QPoint, QPointF
 from PySide6.QtGui import QImage, QColor, QWheelEvent
 from PySide6.QtWidgets import QApplication, QGraphicsTextItem
 
-from src.igridvu import ZoomableView
+from igridvu import ZoomableView
 
 
 def get_scene_text(view):

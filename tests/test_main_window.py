@@ -16,7 +16,7 @@ from PySide6.QtCore import Qt, QPoint, QPointF
 from PySide6.QtGui import QColor, QWheelEvent
 from PySide6.QtWidgets import QApplication, QGridLayout
 
-from src.igridvu import ImageGrid, ZoomableView
+from igridvu import ImageGrid, ZoomableView
 
 
 def test_image_grid_widget_creation(qtbot):

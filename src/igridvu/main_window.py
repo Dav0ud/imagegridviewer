@@ -7,8 +7,9 @@ from typing import List
 from pathlib import Path
 
 from PySide6.QtWidgets import (QWidget, QGridLayout, QApplication,
-                             QMainWindow, QVBoxLayout)
-from PySide6.QtCore import Qt, QRectF, QPointF
+                             QMainWindow, QVBoxLayout, QFileDialog)
+from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtCore import Qt, QRectF, QPointF, QStandardPaths
 
 from .zoomable_view import ZoomableView
 
@@ -38,9 +39,9 @@ class ImageGrid(QMainWindow):
         main_layout.setSpacing(0)
 
         # Create a container widget for the grid itself.
-        grid_container = QWidget()
+        self.grid_container = QWidget()
         self.views: List[ZoomableView] = []
-        layout = QGridLayout(grid_container)
+        layout = QGridLayout(self.grid_container)
         # Minimize the space between grid cells and around the layout's edges
         # to create a tightly packed grid.
         layout.setSpacing(0)
@@ -72,13 +73,15 @@ class ImageGrid(QMainWindow):
             self.views.append(view)
 
         # Add the grid container to the main layout.
-        main_layout.addWidget(grid_container)
+        main_layout.addWidget(self.grid_container)
         # Add a stretchable space at the bottom, pushing the grid upwards.
         main_layout.addStretch(1)
 
         # Set up the status bar with a default message
         self.status_message = "Ready. Hover for path. Move over image for pixel values."
         self.statusBar().showMessage(self.status_message)
+
+        self._create_menu_bar()
 
         self.setWindowTitle(f"{self.app_name}: {self.pre_path}...")
         self.resize(800, 600)
@@ -91,6 +94,43 @@ class ImageGrid(QMainWindow):
         center_point = QApplication.primaryScreen().availableGeometry().center()
         frame_geometry.moveCenter(center_point)
         self.move(frame_geometry.topLeft())
+
+    def _create_menu_bar(self):
+        """Creates the main menu bar with a 'File' menu."""
+        menu_bar = self.menuBar()
+        file_menu = menu_bar.addMenu("&File")
+
+        save_action = QAction("&Save Snapshot...", self)
+        save_action.setShortcut(QKeySequence.Save)
+        save_action.setStatusTip("Save the current grid view as an image")
+        save_action.triggered.connect(self._save_snapshot)
+        file_menu.addAction(save_action)
+
+    def _save_snapshot(self):
+        """Saves a snapshot of the application window to a file."""
+        # Grab the window content BEFORE opening the file dialog. This ensures
+        # that the status bar text (e.g., pixel info) is captured correctly,
+        # as opening the dialog can cause the window to lose focus and reset the text.
+        pixmap_to_save = self.grab()
+
+        # Suggest a default path in the user's "Pictures" directory
+        pictures_location = QStandardPaths.writableLocation(QStandardPaths.PicturesLocation)
+        default_path = os.path.join(pictures_location, "image_grid_snapshot.png")
+
+        # Open a file dialog to let the user choose where to save
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Snapshot",
+            default_path,
+            "Images (*.png *.jpg *.bmp)"
+        )
+
+        if file_path:
+            # Save the previously captured pixmap.
+            if pixmap_to_save.save(file_path):
+                self.statusBar().showMessage(f"Snapshot saved to {file_path}", 5000)  # Show for 5s
+            else:
+                self.statusBar().showMessage(f"Error: Failed to save snapshot to {file_path}", 5000)
 
     def sync_views(self, rect: QRectF):
         """Slot to synchronize all views to the given rectangle."""
