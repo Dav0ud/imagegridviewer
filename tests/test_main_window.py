@@ -9,12 +9,12 @@ Then, from the command line in the project directory, run:
   python3 -m pytest
 """
 from pathlib import Path
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock, MagicMock, patch
 
 import pytest
-from PySide6.QtCore import Qt, QPoint, QPointF, QStandardPaths
-from PySide6.QtGui import QColor, QWheelEvent
-from PySide6.QtWidgets import QApplication, QGridLayout, QFileDialog
+from PySide6.QtCore import QPoint, QPointF, QStandardPaths, Qt
+from PySide6.QtGui import QAction, QColor, QWheelEvent
+from PySide6.QtWidgets import QApplication, QFileDialog, QGridLayout, QMessageBox, QPushButton
 
 from igridvu import ImageGrid, ZoomableView
 
@@ -38,16 +38,11 @@ def test_image_grid_layout_wrapping(qtbot):
     default number of columns.
     """
     # Create 5 suffixes to test wrapping past the default columns of 4
-    suffixes = [f"{i}.png\n" for i in range(1, 6)]
-    # Uses default columns=4
+    suffixes = [f"{i}.png" for i in range(1, 6)]
     grid = ImageGrid("test_prefix_", suffixes, suffix_file_path="dummy.txt")
     qtbot.addWidget(grid)
 
-    # The central widget's layout (QVBoxLayout) contains a container widget
-    # for the grid. We need to get the QGridLayout from that container.
-    main_layout = grid.centralWidget().layout()
-    grid_container = main_layout.itemAt(0).widget()
-    layout = grid_container.layout()
+    layout = grid.grid_layout
     assert isinstance(layout, QGridLayout)
     # The 5th item (index 4) should be at position (row=1, column=0)
     row, col, _row_span, _col_span = layout.getItemPosition(4)
@@ -60,16 +55,12 @@ def test_image_grid_layout_custom_columns(qtbot):
     Tests that the grid layout correctly uses a custom number of columns.
     """
     # Create 3 suffixes to test wrapping with 2 columns
-    suffixes = [f"{i}.png\n" for i in range(1, 4)]  # 1.png, 2.png, 3.png
+    suffixes = [f"{i}.png" for i in range(1, 4)]  # 1.png, 2.png, 3.png
     # Set columns to 2
     grid = ImageGrid("test_prefix_", suffixes, suffix_file_path="dummy.txt", columns=2)
     qtbot.addWidget(grid)
 
-    # The central widget's layout (QVBoxLayout) contains a container widget
-    # for the grid. We need to get the QGridLayout from that container.
-    main_layout = grid.centralWidget().layout()
-    grid_container = main_layout.itemAt(0).widget()
-    layout = grid_container.layout()
+    layout = grid.grid_layout
     assert isinstance(layout, QGridLayout)
     # The 3rd item (index 2) should be at (row=1, col=0)
     row, col, _row_span, _col_span = layout.getItemPosition(2)
@@ -84,7 +75,7 @@ def test_image_grid_handles_leading_space_in_suffix(qtbot):
     """
     pre_path = "test_image"
     # Suffix has a leading space and a trailing newline
-    suffixes = [" 1.png\n"]
+    suffixes = [" 1.png"]
     grid = ImageGrid(pre_path, suffixes, suffix_file_path="dummy.txt")
     qtbot.addWidget(grid)
 
@@ -100,7 +91,7 @@ def test_image_grid_directory_prefix(tmp_path: Path, qtbot, create_dummy_image):
     # The prefix is the temp directory itself
     pre_path = str(tmp_path)
     # The suffix is just the filename
-    suffixes = ["image.png\n"]
+    suffixes = ["image.png"]
     # Create the image at the expected final path
     expected_path = tmp_path / "image.png"
     create_dummy_image(tmp_path, filename="image.png")
@@ -120,7 +111,7 @@ def test_image_grid_synchronizes_views(tmp_path: Path, qtbot, create_dummy_image
     create_dummy_image(tmp_path, filename="1.png", width=200, height=200)
     create_dummy_image(tmp_path, filename="2.png", width=200, height=200)
 
-    suffixes = ["1.png\n", "2.png\n"]
+    suffixes = ["1.png", "2.png"]
     grid = ImageGrid(str(tmp_path), suffixes, suffix_file_path="dummy.txt")
     qtbot.addWidget(grid)
     grid.show()
@@ -168,7 +159,7 @@ def test_image_grid_synchronizes_views(tmp_path: Path, qtbot, create_dummy_image
 def test_image_grid_status_bar_hover(tmp_path: Path, qtbot, create_dummy_image):
     """Tests that hovering over a view updates the status bar."""
     img_path = create_dummy_image(tmp_path)
-    grid = ImageGrid(str(img_path.parent), [img_path.name + "\n"], suffix_file_path="dummy.txt")
+    grid = ImageGrid(str(img_path.parent), [img_path.name], suffix_file_path="dummy.txt")
     qtbot.addWidget(grid)
     grid.show()
 
@@ -189,7 +180,7 @@ def test_image_grid_status_bar_pixel_info(tmp_path: Path, qtbot, create_dummy_im
     # Create two images to test synchronization of pixel info
     img1_path = create_dummy_image(tmp_path, filename="1.png")
     img2_path = create_dummy_image(tmp_path, filename="2.png")
-    suffixes = [img1_path.name + "\n", img2_path.name + "\n"]
+    suffixes = [img1_path.name, img2_path.name]
     grid = ImageGrid(str(tmp_path), suffixes, suffix_file_path="dummy.txt")
     qtbot.addWidget(grid)
     grid.show()
@@ -232,31 +223,39 @@ def test_image_grid_status_bar_pixel_info(tmp_path: Path, qtbot, create_dummy_im
     assert status_bar.currentMessage() == expected_msg_partial
 
 
-def test_image_grid_empty_suffixes(qtbot):
-    """Tests that ImageGrid handles an empty list of suffixes gracefully."""
+def test_welcome_page_shown_on_no_suffixes(qtbot):
+    """Tests that ImageGrid shows the welcome page when no suffixes are provided."""
     grid = ImageGrid("pre_path", [], suffix_file_path="dummy.txt")
     qtbot.addWidget(grid)
+
+    # Assert that the welcome page is the current widget
+    assert grid.stacked_widget.currentWidget() == grid.welcome_widget
+
+    # Assert that no image views were created
     views = grid.findChildren(ZoomableView)
     assert len(views) == 0
-    # Check that the status bar shows the default message
-    assert grid.statusBar().currentMessage() == grid.status_message
 
 
 def test_image_grid_window_title(qtbot):
     """Tests that the ImageGrid window has an appropriate title."""
+    # Case 1: With a prefix and suffixes, showing the grid
     pre_path = "/some/test/directory/prefix_"
-    grid = ImageGrid(pre_path, [], suffix_file_path="dummy.txt")
-    qtbot.addWidget(grid)
+    grid_with_prefix = ImageGrid(pre_path, ["a.png"], suffix_file_path="dummy.txt")
+    qtbot.addWidget(grid_with_prefix)
 
-    # Assuming the title should contain the app name and the prefix path
-    assert "Image Grid Viewer" in grid.windowTitle()
-    assert pre_path in grid.windowTitle()
+    assert "Image Grid Viewer" in grid_with_prefix.windowTitle()
+    assert pre_path in grid_with_prefix.windowTitle()
+
+    # Case 2: With no suffixes, showing the welcome screen
+    grid_no_prefix = ImageGrid("", [], suffix_file_path="dummy.txt")
+    qtbot.addWidget(grid_no_prefix)
+    assert grid_no_prefix.windowTitle() == "Image Grid Viewer"
 
 
 def test_image_grid_view_labels(qtbot):
     """Tests that the labels for each view are set correctly from the suffixes."""
     pre_path = "prefix_"
-    suffixes = ["a.png\n", "b.png\n"]
+    suffixes = ["a.png", "b.png"]
     grid = ImageGrid(pre_path, suffixes, suffix_file_path="dummy.txt")
     qtbot.addWidget(grid)
 
@@ -276,7 +275,7 @@ def test_image_grid_view_labels(qtbot):
 def test_save_snapshot(qtbot, tmp_path, monkeypatch, dialog_filename, save_return, expected_status_contains, save_called):
     """Tests the _save_snapshot method for success, cancellation, and failure."""
     # 1. Setup
-    grid = ImageGrid("pre_path", ["a.png\n"], suffix_file_path="dummy.txt")
+    grid = ImageGrid("pre_path", ["a.png"], suffix_file_path="dummy.txt")
     qtbot.addWidget(grid)
     grid.show()
     qtbot.waitActive(grid)
@@ -309,3 +308,64 @@ def test_save_snapshot(qtbot, tmp_path, monkeypatch, dialog_filename, save_retur
         mock_pixmap.save.assert_not_called()
 
     assert expected_status_contains in grid.statusBar().currentMessage()
+
+
+def test_welcome_page_buttons_connected(qtbot):
+    """Tests that the welcome page buttons are connected to the correct slots."""
+    grid = ImageGrid("", [], "dummy.txt")
+    qtbot.addWidget(grid)
+
+    # Mock the target methods
+    grid._open_suffix_editor = Mock()
+    grid._prompt_create_examples = Mock()
+
+    # Find buttons by their text
+    buttons = grid.welcome_widget.findChildren(QPushButton)
+    open_editor_button = next(b for b in buttons if "Suffix Editor" in b.text())
+    create_example_button = next(b for b in buttons if "Example Dataset" in b.text())
+
+    # Click buttons and assert that the mocks were called
+    qtbot.mouseClick(open_editor_button, Qt.LeftButton)
+    grid._open_suffix_editor.assert_called_once()
+
+    qtbot.mouseClick(create_example_button, Qt.LeftButton)
+    grid._prompt_create_examples.assert_called_once()
+
+
+@pytest.mark.parametrize("load_answer", [QMessageBox.StandardButton.Yes, QMessageBox.StandardButton.No])
+@patch('igridvu.main_window.create_example_dataset')
+def test_create_example_dataset_action_and_load(mock_create_dataset, qtbot, monkeypatch, load_answer):
+    """Tests the full flow of creating and optionally loading the example dataset."""
+    # 1. Setup
+    grid = ImageGrid("", [], "dummy.txt")
+    qtbot.addWidget(grid)
+
+    # 2. Mock dependencies
+    # Mock the dialogs and the file creation function
+    mock_info = Mock(return_value=QMessageBox.StandardButton.Ok)
+    mock_question = Mock(return_value=load_answer)
+    monkeypatch.setattr(QMessageBox, 'information', mock_info)
+    monkeypatch.setattr(QMessageBox, 'question', mock_question)
+
+    example_prefix = str(Path.cwd() / "testscene" / "scene1_")
+    mock_create_dataset.return_value = (True, "Success!", example_prefix)
+
+    # Mock the reload function to check if it's called
+    grid._reload_grid = Mock()
+
+    # 3. Action: Find and trigger the action from the menu
+    # Find the action directly to avoid potential issues with menu object lifecycles in tests.
+    create_action = next(a for a in grid.findChildren(QAction) if a.text() == "Create Example Dataset...")
+    create_action.trigger()
+
+    # 4. Assertions
+    mock_info.assert_called_once()  # The first confirmation dialog
+    mock_create_dataset.assert_called_once()
+    mock_question.assert_called_once()  # The "load now?" dialog
+
+    if load_answer == QMessageBox.StandardButton.Yes:
+        assert grid.pre_path == example_prefix
+        assert grid.suffix_file_path == str(Path(example_prefix).parent / "igridvu_suffix.txt")
+        grid._reload_grid.assert_called_once()
+    else:
+        grid._reload_grid.assert_not_called()

@@ -48,7 +48,12 @@ This project's dependencies are managed in `pyproject.toml`. The installation co
     venv\Scripts\activate
     ```
 
-3. Install the project. For development, install it in "editable" mode (`-e`), which allows your code changes to be reflected immediately without reinstalling. The `[dev]` part includes testing dependencies like `pytest`.
+3. Upgrade `pip` to the latest version within the virtual environment. This helps prevent potential installation issues.
+   ```bash
+   python -m pip install --upgrade pip
+   ```
+
+4. Install the project. For development, install it in "editable" mode (`-e`), which allows your code changes to be reflected immediately without reinstalling. The `[dev]` part includes testing dependencies like `pytest`.
 ```bash
 # Install for development
 pip install -e ".[dev]"

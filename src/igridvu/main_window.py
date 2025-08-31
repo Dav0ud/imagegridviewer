@@ -8,13 +8,15 @@ from pathlib import Path
 from itertools import islice
 
 from PySide6.QtWidgets import (QWidget, QGridLayout, QApplication,
-                             QMainWindow, QVBoxLayout, QFileDialog)
-from PySide6.QtGui import QAction, QKeySequence
-from PySide6.QtCore import Qt, QRectF, QPointF, QStandardPaths
+                             QMainWindow, QVBoxLayout, QFileDialog, QMessageBox,
+                             QStackedWidget, QPushButton, QLabel)
+from PySide6.QtGui import QAction, QKeySequence, QFont
+from PySide6.QtCore import Qt, QRectF, QPointF, QStandardPaths, QSize
 
 from .zoomable_view import ZoomableView
 from .suffix_editor import SuffixEditorDialog
 from .config import MAX_IMAGES
+from .create_examples import create_example_dataset
 
 
 class ImageGrid(QMainWindow):
@@ -33,41 +35,82 @@ class ImageGrid(QMainWindow):
 
     def initUI(self):
         """Initializes the UI and lays out the image labels in a grid."""
-        # A QMainWindow requires a central widget to hold the main layout
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-        
-        # Create a main vertical layout to hold the grid and a stretch item.
-        # This ensures the grid is always pushed to the top of the window.
-        main_layout = QVBoxLayout(central_widget)
+        self.stacked_widget = QStackedWidget()
+        self.setCentralWidget(self.stacked_widget)
+
+        # Page 1: Welcome/Empty State
+        self.welcome_widget = self._create_welcome_page()
+        self.stacked_widget.addWidget(self.welcome_widget)
+
+        # Page 2: Grid View
+        self.grid_container = QWidget()
+        main_layout = QVBoxLayout(self.grid_container)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # Create a container widget for the grid itself.
-        self.grid_container = QWidget()
-        self.grid_layout = QGridLayout(self.grid_container)
-        # Minimize the space between grid cells and around the layout's edges
-        # to create a tightly packed grid.
+        grid_widget = QWidget()
+        self.grid_layout = QGridLayout(grid_widget)
         self.grid_layout.setSpacing(0)
         self.grid_layout.setContentsMargins(0, 0, 0, 0)
-
-        # Add the grid container to the main layout.
-        main_layout.addWidget(self.grid_container)
-        # Add a stretchable space at the bottom, pushing the grid upwards.
+        main_layout.addWidget(grid_widget)
         main_layout.addStretch(1)
-
-        self._populate_grid(self.list_of_suffix)
+        self.stacked_widget.addWidget(self.grid_container)
 
         # Set up the status bar with a default message
         self.status_message = "Ready. Hover for path. Move over image for pixel values."
         self.statusBar().showMessage(self.status_message)
 
         self._create_menu_bar()
-
-        self.setWindowTitle(f"{self.app_name}: {self.pre_path}...")
         self.resize(800, 600)
         self._center_on_screen()
+
+        # Decide which page to show on startup
+        if not self.list_of_suffix:
+            self.stacked_widget.setCurrentWidget(self.welcome_widget)
+            self.setWindowTitle(self.app_name)
+        else:
+            self._populate_grid(self.list_of_suffix)
+            self.stacked_widget.setCurrentWidget(self.grid_container)
+            self.setWindowTitle(f"{self.app_name}: {self.pre_path}...")
+
         self.show()
+
+    def _create_welcome_page(self) -> QWidget:
+        """Creates the widget to show when no images are loaded."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setAlignment(Qt.AlignCenter)
+        layout.setSpacing(20)
+
+        title_font = QFont()
+        title_font.setPointSize(20)
+        title_font.setBold(True)
+
+        title_label = QLabel("Welcome to Image Grid Viewer")
+        title_label.setFont(title_font)
+        title_label.setAlignment(Qt.AlignCenter)
+
+        instructions_label = QLabel(
+            "To get started, please load a set of images.\n\n"
+            "You can either open a suffix file via the editor,\n"
+            "or generate an example dataset to see how the tool works."
+        )
+        instructions_label.setAlignment(Qt.AlignCenter)
+
+        open_editor_button = QPushButton("Open Suffix Editor...")
+        open_editor_button.setFixedSize(QSize(220, 32))
+        open_editor_button.clicked.connect(self._open_suffix_editor)
+
+        create_example_button = QPushButton("Create Example Dataset...")
+        create_example_button.setFixedSize(QSize(220, 32))
+        create_example_button.clicked.connect(self._prompt_create_examples)
+
+        layout.addWidget(title_label)
+        layout.addWidget(instructions_label)
+        layout.addWidget(open_editor_button, 0, Qt.AlignCenter)
+        layout.addWidget(create_example_button, 0, Qt.AlignCenter)
+
+        return widget
 
     def _clear_grid(self):
         """Removes all widgets from the grid layout and clears the views list."""
@@ -129,6 +172,14 @@ class ImageGrid(QMainWindow):
         edit_suffixes_action.triggered.connect(self._open_suffix_editor)
         edit_menu.addAction(edit_suffixes_action)
 
+        help_menu = menu_bar.addMenu("&Help")
+        create_examples_action = QAction("Create Example Dataset...", self)
+        create_examples_action.setStatusTip(
+            "Create a sample set of images to demonstrate the tool's features"
+        )
+        create_examples_action.triggered.connect(self._prompt_create_examples)
+        help_menu.addAction(create_examples_action)
+
     def _open_suffix_editor(self):
         """Opens the suffix editor dialog and reloads the grid if changes are saved."""
         dialog = SuffixEditorDialog(self.suffix_file_path, MAX_IMAGES, self)
@@ -137,15 +188,25 @@ class ImageGrid(QMainWindow):
 
     def _reload_grid(self):
         """Reloads the suffixes from the file and repopulates the grid."""
-        try:
-            with open(self.suffix_file_path, 'r', encoding='utf-8') as f:
-                self.list_of_suffix = [line.strip() for line in islice(f, MAX_IMAGES) if line.strip()]
+        if not self.suffix_file_path or not Path(self.suffix_file_path).is_file():
+            self.list_of_suffix = []
+        else:
+            try:
+                with open(self.suffix_file_path, 'r', encoding='utf-8') as f:
+                    self.list_of_suffix = [line.strip() for line in islice(f, MAX_IMAGES) if line.strip()]
+                self.statusBar().showMessage("Grid reloaded with new suffixes.", 5000)
+            except (FileNotFoundError, IOError) as e:
+                self.list_of_suffix = []
+                self.statusBar().showMessage(f"Error reading suffix file: {e}", 5000)
 
+        if self.list_of_suffix:
             self._populate_grid(self.list_of_suffix)
-            self.statusBar().showMessage("Grid reloaded with new suffixes.", 5000)
-        except FileNotFoundError:
-            self.statusBar().showMessage(f"Error: Suffix file '{self.suffix_file_path}' not found.", 5000)
-            self._populate_grid([])  # Clear the grid if file is gone
+            self.stacked_widget.setCurrentWidget(self.grid_container)
+            self.setWindowTitle(f"{self.app_name}: {self.pre_path}...")
+        else:
+            self._populate_grid([])  # Clear the grid
+            self.stacked_widget.setCurrentWidget(self.welcome_widget)
+            self.setWindowTitle(self.app_name)
 
     def _save_snapshot(self):
         """Saves a snapshot of the application window to a file."""
@@ -172,6 +233,43 @@ class ImageGrid(QMainWindow):
                 self.statusBar().showMessage(f"Snapshot saved to {file_path}", 5000)  # Show for 5s
             else:
                 self.statusBar().showMessage(f"Error: Failed to save snapshot to {file_path}", 5000)
+
+    def _prompt_create_examples(self):
+        """
+        Shows a dialog to confirm and then create the example image set.
+        """
+        target_dir = Path.cwd()
+        reply = QMessageBox.information(
+            self,
+            "Create Example Dataset",
+            f"This will create a 'testscene' folder with example images in the "
+            f"current directory:\n\n{target_dir}\n\n"
+            "This is useful for demonstrating the application's features. Proceed?",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Ok,
+        )
+
+        if reply == QMessageBox.StandardButton.Ok:
+            # The create_example_dataset function uses Qt classes, so an application
+            # instance must exist. This is guaranteed when called from the GUI.
+            success, message, prefix_path_str = create_example_dataset(target_dir)
+
+            if success:
+                # Ask the user if they want to load the new dataset
+                load_reply = QMessageBox.question(
+                    self,
+                    "Success",
+                    f"{message}\n\nWould you like to load this example dataset now?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.Yes,
+                )
+                if load_reply == QMessageBox.StandardButton.Yes:
+                    prefix_path = Path(prefix_path_str)
+                    self.pre_path = prefix_path_str
+                    self.suffix_file_path = str(prefix_path.parent / "igridvu_suffix.txt")
+                    self._reload_grid()
+            else:
+                QMessageBox.critical(self, "Error", message)
 
     def sync_views(self, rect: QRectF):
         """Slot to synchronize all views to the given rectangle."""

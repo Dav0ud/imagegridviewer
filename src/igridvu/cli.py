@@ -23,11 +23,13 @@ def main():
     parser = argparse.ArgumentParser(
         description="Image Grid Viewer (igridvu). Displays a grid of images from a prefix and a list of suffixes.",
         formatter_class=argparse.RawTextHelpFormatter,  # Keep newlines in help text
-        epilog="Example: python3 -m src.igridvu.cli testimage"
+        epilog="Example: igridvu testscene/scene1_"
     )
     parser.add_argument(
         "image_prefix",
-        help="The common prefix for the image files (e.g., 'testimage')."
+        nargs="?",
+        default=None,
+        help="The common prefix for the image files (e.g., 'testimage').\nIf omitted, the application starts with a welcome screen."
     )
     parser.add_argument(
         "suffix_file",
@@ -43,36 +45,41 @@ def main():
     )
     args = parser.parse_args()
 
-    if args.suffix_file:
-        suffix_file_path = Path(args.suffix_file)
+    list_of_suffix = []
+    pre_path_str = ""
+    suffix_file_path_str = ""
+
+    if args.image_prefix:
+        # A prefix was provided, try to load files.
+        pre_path_str = args.image_prefix
+        prefix_path = Path(pre_path_str)
+
+        if args.suffix_file:
+            suffix_file_path = Path(args.suffix_file)
+        else:
+            # The default is 'igridvu_suffix.txt' in the same directory as the prefix.
+            suffix_file_path = prefix_path.parent / DEFAULT_SUFFIX_FILE
+
+        if suffix_file_path.is_file():
+            try:
+                with open(suffix_file_path, 'r', encoding='utf-8') as f:
+                    list_of_suffix = [line.strip() for line in islice(f, MAX_IMAGES) if line.strip()]
+                    if f.readline():
+                        print(f"Warning: Suffix file has more than {MAX_IMAGES} lines.", file=sys.stderr)
+                        print(f"-> Displaying the first {MAX_IMAGES} images.")
+            except IOError as e:
+                print(f"Warning: Could not read suffix file '{suffix_file_path}': {e}", file=sys.stderr)
+        suffix_file_path_str = str(suffix_file_path)
     else:
-        # The default is 'igridvu_suffix.txt' in the same directory as the prefix.
-        prefix_path = Path(args.image_prefix)
-        # If prefix is 'foo/bar_', parent is 'foo'. If 'bar_', parent is '.'.
-        suffix_file_path = prefix_path.parent / DEFAULT_SUFFIX_FILE
-
-    try:
-        # Use encoding='utf-8' for broader compatibility
-        with open(suffix_file_path, 'r', encoding='utf-8') as f:
-            # Efficiently read up to MAX_IMAGES lines without loading the whole file
-            list_of_suffix = list(islice(f, MAX_IMAGES))
-            # Check if there were more lines left in the file
-            if f.readline():
-                print(f"Warning: Suffix file has more than {MAX_IMAGES} lines.", file=sys.stderr)
-                print(f"-> Displaying the first {MAX_IMAGES} images.")
-    except FileNotFoundError:
-        print(f"Error: Suffix file not found at '{suffix_file_path}'", file=sys.stderr)
-        sys.exit(1)
-
-    if not list_of_suffix:
-        print(f"Info: Suffix file '{suffix_file_path}' is empty. Nothing to display.", file=sys.stderr)
-        sys.exit(0)
+        # No prefix provided. Start in welcome state.
+        # The suffix editor will need a path to create a new file.
+        suffix_file_path_str = str(Path.cwd() / DEFAULT_SUFFIX_FILE)
 
     # The ImageGrid instance must be stored in a variable for the application to work.
     _ = ImageGrid(
-        pre_path=args.image_prefix,
+        pre_path=pre_path_str,
         list_of_suffix=list_of_suffix,
-        suffix_file_path=str(suffix_file_path),
+        suffix_file_path=suffix_file_path_str,
         columns=args.columns,
         app_name=APP_NAME
     )
