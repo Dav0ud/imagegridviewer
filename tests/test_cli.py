@@ -42,6 +42,7 @@ def test_cli_successful_run(mock_exit, mock_image_grid, mock_qapp, tmp_path, mon
     mock_image_grid.assert_called_once_with(
         pre_path=prefix,
         list_of_suffix=suffixes,
+        suffix_file_path=str(suffix_file),
         columns=4,  # Default value
         app_name=cli.APP_NAME
     )
@@ -75,6 +76,7 @@ def test_cli_default_suffix_file(mock_exit, mock_image_grid, mock_qapp, tmp_path
     mock_image_grid.assert_called_once_with(
         pre_path=str(prefix),
         list_of_suffix=suffixes,
+        suffix_file_path=str(default_suffix_file),
         columns=4,
         app_name=cli.APP_NAME
     )
@@ -147,10 +149,13 @@ def test_cli_max_images_limit(mock_exit, mock_image_grid, mock_qapp, tmp_path, m
     captured = capsys.readouterr()
     assert f"Warning: Suffix file has more than {cli.MAX_IMAGES} lines." in captured.err
 
-    mock_image_grid.assert_called_once()
-    called_kwargs = mock_image_grid.call_args.kwargs
-    assert len(called_kwargs['list_of_suffix']) == cli.MAX_IMAGES
-    assert called_kwargs['list_of_suffix'] == suffixes[:cli.MAX_IMAGES]
+    mock_image_grid.assert_called_once_with(
+        pre_path='prefix',
+        list_of_suffix=suffixes[:cli.MAX_IMAGES],
+        suffix_file_path=str(long_suffix_file),
+        columns=4,
+        app_name=cli.APP_NAME
+    )
 
 
 @patch('igridvu.cli.QApplication')
@@ -170,7 +175,11 @@ def test_cli_custom_columns(mock_exit, mock_image_grid, mock_qapp, tmp_path, mon
     monkeypatch.setattr(sys, 'argv', ['igridvu', 'prefix', str(suffix_file), '-c', '2'])
     cli.main()
     mock_image_grid.assert_called_with(
-        pre_path='prefix', list_of_suffix=['a.png\n'], columns=2, app_name=cli.APP_NAME
+        pre_path='prefix',
+        list_of_suffix=['a.png\n'],
+        suffix_file_path=str(suffix_file),
+        columns=2,
+        app_name=cli.APP_NAME
     )
 
     # Reset mock for the next assertion
@@ -180,5 +189,9 @@ def test_cli_custom_columns(mock_exit, mock_image_grid, mock_qapp, tmp_path, mon
     monkeypatch.setattr(sys, 'argv', ['igridvu', 'prefix', str(suffix_file), '--columns', '8'])
     cli.main()
     mock_image_grid.assert_called_with(
-        pre_path='prefix', list_of_suffix=['a.png\n'], columns=8, app_name=cli.APP_NAME
+        pre_path='prefix',
+        list_of_suffix=['a.png\n'],
+        suffix_file_path=str(suffix_file),
+        columns=8,
+        app_name=cli.APP_NAME
     )

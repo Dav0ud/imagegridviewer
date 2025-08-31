@@ -10,11 +10,10 @@ from itertools import islice
 from PySide6.QtWidgets import QApplication
 
 from .main_window import ImageGrid
+from .config import MAX_IMAGES
 
 APP_NAME = "Image Grid Viewer"
 DEFAULT_SUFFIX_FILE = "igridvu_suffix.txt"
-# Limit the number of images to prevent excessive resource usage
-MAX_IMAGES = 30
 
 def main():
     """Main function to run the application."""
@@ -73,6 +72,7 @@ def main():
     _ = ImageGrid(
         pre_path=args.image_prefix,
         list_of_suffix=list_of_suffix,
+        suffix_file_path=str(suffix_file_path),
         columns=args.columns,
         app_name=APP_NAME
     )

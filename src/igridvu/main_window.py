@@ -3,8 +3,9 @@
 The main window for the Image Grid Viewer application.
 """
 import os
-from typing import List
+from typing import List, cast
 from pathlib import Path
+from itertools import islice
 
 from PySide6.QtWidgets import (QWidget, QGridLayout, QApplication,
                              QMainWindow, QVBoxLayout, QFileDialog)
@@ -12,18 +13,22 @@ from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtCore import Qt, QRectF, QPointF, QStandardPaths
 
 from .zoomable_view import ZoomableView
+from .suffix_editor import SuffixEditorDialog
+from .config import MAX_IMAGES
 
 
 class ImageGrid(QMainWindow):
     """A widget that displays a grid of images."""
 
-    def __init__(self, pre_path: str, list_of_suffix: List[str],
+    def __init__(self, pre_path: str, list_of_suffix: List[str], suffix_file_path: str,
                  columns: int = 4, app_name: str = "Image Grid Viewer"):
         super().__init__()
         self.pre_path = pre_path
         self.list_of_suffix = list_of_suffix
+        self.suffix_file_path = suffix_file_path
         self.columns = columns
         self.app_name = app_name
+        self.views: List[ZoomableView] = []
         self.initUI()
 
     def initUI(self):
@@ -40,42 +45,18 @@ class ImageGrid(QMainWindow):
 
         # Create a container widget for the grid itself.
         self.grid_container = QWidget()
-        self.views: List[ZoomableView] = []
-        layout = QGridLayout(self.grid_container)
+        self.grid_layout = QGridLayout(self.grid_container)
         # Minimize the space between grid cells and around the layout's edges
         # to create a tightly packed grid.
-        layout.setSpacing(0)
-        layout.setContentsMargins(0, 0, 0, 0)
-
-        prefix_is_dir = os.path.isdir(self.pre_path)
-
-        for i, suffix in enumerate(self.list_of_suffix):
-            row = i // self.columns
-            col = i % self.columns
-            
-            clean_suffix = suffix.rstrip()
-            # If the prefix is a directory, join paths. Otherwise, concatenate.
-            full_path = os.path.join(self.pre_path, clean_suffix) if prefix_is_dir else self.pre_path + clean_suffix
-
-            label_text = Path(clean_suffix).stem
-
-            # The ZoomableView now manages its own title label as an overlay
-            view = ZoomableView(full_path, label_text)
-            view.hovered.connect(self.update_status_bar)
-            view.mouseMovedAtScenePos.connect(self._update_pixel_info)
-            view.viewRectChanged.connect(self.sync_views)
-
-            # Add the view directly to the grid. By specifying Qt.AlignTop,
-            # we ensure that if a row's height is determined by a taller
-            # image, the shorter images in that row will align to the top of
-            # their cells instead of stretching, creating a masonry-like layout.
-            layout.addWidget(view, row, col, Qt.AlignTop)
-            self.views.append(view)
+        self.grid_layout.setSpacing(0)
+        self.grid_layout.setContentsMargins(0, 0, 0, 0)
 
         # Add the grid container to the main layout.
         main_layout.addWidget(self.grid_container)
         # Add a stretchable space at the bottom, pushing the grid upwards.
         main_layout.addStretch(1)
+
+        self._populate_grid(self.list_of_suffix)
 
         # Set up the status bar with a default message
         self.status_message = "Ready. Hover for path. Move over image for pixel values."
@@ -87,6 +68,42 @@ class ImageGrid(QMainWindow):
         self.resize(800, 600)
         self._center_on_screen()
         self.show()
+
+    def _clear_grid(self):
+        """Removes all widgets from the grid layout and clears the views list."""
+        for view in self.views:
+            view.deleteLater()
+        self.views.clear()
+
+        # Also clear the layout by deleting all its items
+        while (item := self.grid_layout.takeAt(0)) is not None:
+            if item.widget():
+                item.widget().deleteLater()
+
+    def _populate_grid(self, suffixes: List[str]):
+        """Populates the grid with views for the given suffixes."""
+        self._clear_grid()
+        prefix_is_dir = os.path.isdir(self.pre_path)
+
+        for i, suffix in enumerate(suffixes):
+            row = i // self.columns
+            col = i % self.columns
+
+            clean_suffix = suffix.rstrip()
+            # If the prefix is a directory, join paths. Otherwise, concatenate.
+            full_path = (os.path.join(self.pre_path, clean_suffix)
+                         if prefix_is_dir else self.pre_path + clean_suffix)
+
+            label_text = Path(clean_suffix).stem
+
+            view = ZoomableView(full_path, label_text)
+            view.hovered.connect(self.update_status_bar)
+            view.mouseMovedAtScenePos.connect(self._update_pixel_info)
+            view.viewRectChanged.connect(self.sync_views)
+
+            # AlignTop creates a masonry-like layout for images of different aspect ratios
+            self.grid_layout.addWidget(view, row, col, Qt.AlignTop)
+            self.views.append(view)
 
     def _center_on_screen(self):
         """Centers the window on the primary screen."""
@@ -105,6 +122,30 @@ class ImageGrid(QMainWindow):
         save_action.setStatusTip("Save the current grid view as an image")
         save_action.triggered.connect(self._save_snapshot)
         file_menu.addAction(save_action)
+
+        edit_menu = menu_bar.addMenu("&Edit")
+        edit_suffixes_action = QAction("Edit &Suffixes...", self)
+        edit_suffixes_action.setStatusTip("Open an editor for the suffix list file")
+        edit_suffixes_action.triggered.connect(self._open_suffix_editor)
+        edit_menu.addAction(edit_suffixes_action)
+
+    def _open_suffix_editor(self):
+        """Opens the suffix editor dialog and reloads the grid if changes are saved."""
+        dialog = SuffixEditorDialog(self.suffix_file_path, MAX_IMAGES, self)
+        if dialog.exec():  # True if the dialog was accepted (saved)
+            self._reload_grid()
+
+    def _reload_grid(self):
+        """Reloads the suffixes from the file and repopulates the grid."""
+        try:
+            with open(self.suffix_file_path, 'r', encoding='utf-8') as f:
+                self.list_of_suffix = [line.strip() for line in islice(f, MAX_IMAGES) if line.strip()]
+
+            self._populate_grid(self.list_of_suffix)
+            self.statusBar().showMessage("Grid reloaded with new suffixes.", 5000)
+        except FileNotFoundError:
+            self.statusBar().showMessage(f"Error: Suffix file '{self.suffix_file_path}' not found.", 5000)
+            self._populate_grid([])  # Clear the grid if file is gone
 
     def _save_snapshot(self):
         """Saves a snapshot of the application window to a file."""
@@ -149,7 +190,7 @@ class ImageGrid(QMainWindow):
 
     def _update_pixel_info(self, scene_pos: QPointF):
         """Updates status bar with pixel info from all views at a given scene coordinate."""
-        sender_view = self.sender()
+        sender_view = cast(ZoomableView, self.sender())
         if not isinstance(sender_view, ZoomableView) or not sender_view.has_image():
             return
 

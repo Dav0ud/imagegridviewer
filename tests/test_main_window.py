@@ -24,7 +24,7 @@ def test_image_grid_widget_creation(qtbot):
     pre_path = "test_image_"
     suffixes = ["1.png\n", "2.png\n", "3.png\n"]
 
-    grid = ImageGrid(pre_path, suffixes)
+    grid = ImageGrid(pre_path, suffixes, suffix_file_path="dummy.txt")
     qtbot.addWidget(grid)
 
     # Find all ZoomableView widgets that are children of the grid
@@ -40,7 +40,7 @@ def test_image_grid_layout_wrapping(qtbot):
     # Create 5 suffixes to test wrapping past the default columns of 4
     suffixes = [f"{i}.png\n" for i in range(1, 6)]
     # Uses default columns=4
-    grid = ImageGrid("test_prefix_", suffixes)
+    grid = ImageGrid("test_prefix_", suffixes, suffix_file_path="dummy.txt")
     qtbot.addWidget(grid)
 
     # The central widget's layout (QVBoxLayout) contains a container widget
@@ -62,7 +62,7 @@ def test_image_grid_layout_custom_columns(qtbot):
     # Create 3 suffixes to test wrapping with 2 columns
     suffixes = [f"{i}.png\n" for i in range(1, 4)]  # 1.png, 2.png, 3.png
     # Set columns to 2
-    grid = ImageGrid("test_prefix_", suffixes, columns=2)
+    grid = ImageGrid("test_prefix_", suffixes, suffix_file_path="dummy.txt", columns=2)
     qtbot.addWidget(grid)
 
     # The central widget's layout (QVBoxLayout) contains a container widget
@@ -85,7 +85,7 @@ def test_image_grid_handles_leading_space_in_suffix(qtbot):
     pre_path = "test_image"
     # Suffix has a leading space and a trailing newline
     suffixes = [" 1.png\n"]
-    grid = ImageGrid(pre_path, suffixes)
+    grid = ImageGrid(pre_path, suffixes, suffix_file_path="dummy.txt")
     qtbot.addWidget(grid)
 
     views = grid.findChildren(ZoomableView)
@@ -105,7 +105,7 @@ def test_image_grid_directory_prefix(tmp_path: Path, qtbot, create_dummy_image):
     expected_path = tmp_path / "image.png"
     create_dummy_image(tmp_path, filename="image.png")
 
-    grid = ImageGrid(pre_path, suffixes)
+    grid = ImageGrid(pre_path, suffixes, suffix_file_path="dummy.txt")
     qtbot.addWidget(grid)
 
     assert grid.views[0].img_path == str(expected_path)
@@ -121,7 +121,7 @@ def test_image_grid_synchronizes_views(tmp_path: Path, qtbot, create_dummy_image
     create_dummy_image(tmp_path, filename="2.png", width=200, height=200)
 
     suffixes = ["1.png\n", "2.png\n"]
-    grid = ImageGrid(str(tmp_path), suffixes)
+    grid = ImageGrid(str(tmp_path), suffixes, suffix_file_path="dummy.txt")
     qtbot.addWidget(grid)
     grid.show()
     qtbot.waitActive(grid)
@@ -168,7 +168,7 @@ def test_image_grid_synchronizes_views(tmp_path: Path, qtbot, create_dummy_image
 def test_image_grid_status_bar_hover(tmp_path: Path, qtbot, create_dummy_image):
     """Tests that hovering over a view updates the status bar."""
     img_path = create_dummy_image(tmp_path)
-    grid = ImageGrid(str(img_path.parent), [img_path.name + "\n"])
+    grid = ImageGrid(str(img_path.parent), [img_path.name + "\n"], suffix_file_path="dummy.txt")
     qtbot.addWidget(grid)
     grid.show()
 
@@ -190,7 +190,7 @@ def test_image_grid_status_bar_pixel_info(tmp_path: Path, qtbot, create_dummy_im
     img1_path = create_dummy_image(tmp_path, filename="1.png")
     img2_path = create_dummy_image(tmp_path, filename="2.png")
     suffixes = [img1_path.name + "\n", img2_path.name + "\n"]
-    grid = ImageGrid(str(tmp_path), suffixes)
+    grid = ImageGrid(str(tmp_path), suffixes, suffix_file_path="dummy.txt")
     qtbot.addWidget(grid)
     grid.show()
 
@@ -234,7 +234,7 @@ def test_image_grid_status_bar_pixel_info(tmp_path: Path, qtbot, create_dummy_im
 
 def test_image_grid_empty_suffixes(qtbot):
     """Tests that ImageGrid handles an empty list of suffixes gracefully."""
-    grid = ImageGrid("pre_path", [])
+    grid = ImageGrid("pre_path", [], suffix_file_path="dummy.txt")
     qtbot.addWidget(grid)
     views = grid.findChildren(ZoomableView)
     assert len(views) == 0
@@ -245,7 +245,7 @@ def test_image_grid_empty_suffixes(qtbot):
 def test_image_grid_window_title(qtbot):
     """Tests that the ImageGrid window has an appropriate title."""
     pre_path = "/some/test/directory/prefix_"
-    grid = ImageGrid(pre_path, [])
+    grid = ImageGrid(pre_path, [], suffix_file_path="dummy.txt")
     qtbot.addWidget(grid)
 
     # Assuming the title should contain the app name and the prefix path
@@ -257,7 +257,7 @@ def test_image_grid_view_labels(qtbot):
     """Tests that the labels for each view are set correctly from the suffixes."""
     pre_path = "prefix_"
     suffixes = ["a.png\n", "b.png\n"]
-    grid = ImageGrid(pre_path, suffixes)
+    grid = ImageGrid(pre_path, suffixes, suffix_file_path="dummy.txt")
     qtbot.addWidget(grid)
 
     assert grid.views[0].label_text == "a"
@@ -276,7 +276,7 @@ def test_image_grid_view_labels(qtbot):
 def test_save_snapshot(qtbot, tmp_path, monkeypatch, dialog_filename, save_return, expected_status_contains, save_called):
     """Tests the _save_snapshot method for success, cancellation, and failure."""
     # 1. Setup
-    grid = ImageGrid("pre_path", ["a.png\n"])
+    grid = ImageGrid("pre_path", ["a.png\n"], suffix_file_path="dummy.txt")
     qtbot.addWidget(grid)
     grid.show()
     qtbot.waitActive(grid)
