@@ -23,12 +23,9 @@ A lightweight, Python-based desktop tool for displaying a grid of images. It is 
 
 ## Requirements
 
-- Python 3.6 or higher
-- PySide6
-
-For development and running tests, you will also need:
-- `pytest`
-- `pytest-qt`
+This project's dependencies are managed in `pyproject.toml`. The installation commands below will handle them automatically.
+-   **Runtime:** Python 3.6+ and `PySide6`.
+-   **Development:** `pytest` and `pytest-qt` for running the test suite.
 
 ---
 
@@ -51,27 +48,27 @@ For development and running tests, you will also need:
     venv\Scripts\activate
     ```
 
-3. Install the required dependencies:
-    ```bash
-    # Install runtime dependencies (PySide6)
-    pip install -r requirements.txt
-    ```
+3. Install the project. For development, install it in "editable" mode (`-e`), which allows your code changes to be reflected immediately without reinstalling. The `[dev]` part includes testing dependencies like `pytest`.
+```bash
+# Install for development
+pip install -e ".[dev]"
+```
+    
+For regular use, you can install it normally:
 
-4. For development or running tests, install the development dependencies:
-    ```bash
-    # Install development dependencies (pytest, pytest-qt)
-    pip install -r requirements-dev.txt
-    ```
+```bash
+pip install .
+```
 
 ---
 
 ## Usage
 
-Run the application from the root of the project directory. Provide a prefix for the image files and, optionally, a file containing the suffixes.
+After installation, you can run the application using the `igridvu` command from anywhere.
 
-    ```bash
-    python3 -m src.igridvu.cli <image_prefix> [suffix_file] [--columns N]
-    ```
+```bash
+igridvu <image_prefix> [suffix_file] [--columns N]
+```
 
 ### Arguments:
 *   `image_prefix`: The common prefix for the image files. This can be just a name prefix (e.g., `image_`) or include a path (e.g., `path/to/my_data/run_1_`).
@@ -90,14 +87,32 @@ Imagine you have images representing different illumination components of a scen
     ...
     ```
 
-2.  Run the viewer, providing the path and common prefix:
-    ```bash
-    # The prefix now includes the directory path
-    python3 -m src.igridvu.cli testscene/scene1_
+2.  Run the viewer, providing the path and common prefix
 
-    # Display in a 3-column grid
-    python3 -m src.igridvu.cli testscene/scene1_ --columns 3
-    ```
+2.1.  If the package is installed.
+
+```bash
+# The prefix includes the directory path
+igridvu testscene/scene1_
+```
+
+```bash
+# Display in a 3-column grid
+igridvu testscene/scene1_ --columns 3
+```
+
+2.2. If the package is not installed or you want to refer to the cli script directly.
+
+```bash
+# The prefix includes the directory path
+python3 -m src.igridvu.cli testscene/scene1_
+```
+
+```bash
+# Display in a 3-column grid
+python3 -m src.igridvu.cli testscene/scene1_ --columns 3
+```
+
 
 ### Interaction
 
@@ -114,22 +129,22 @@ Imagine you have images representing different illumination components of a scen
 
 This project uses `pytest`. To run the test suite, first install the development dependencies and then run pytest.
 
-    ```bash
-    # Make sure you have installed development dependencies (see Installation)
-    python3 -m pytest
-    ```
+```bash
+# Make sure you have installed development dependencies
+python3 -m pytest
+```
 
 ---
 
 ## File Structure
-- `src/igridvu/`: The main application package.
+- `pyproject.toml`: The heart of the project, defining metadata, dependencies, and entry points.
+- `src/igridvu/`: The main application source code package.
   - `cli.py`: The command-line entry point.
   - `main_window.py`: Defines the main `QMainWindow`, orchestrates the grid layout, and handles view synchronization and status bar updates.
   - `zoomable_view.py`: Defines the custom `QGraphicsView` widget responsible for loading, displaying, and interacting with a single image (zoom, pan, pixel inspection).
 - `scripts/`: Helper scripts for development.
-- `requirements.txt`: Runtime dependencies for the application.
-- `requirements-dev.txt`: Development and testing dependencies.
 - `tests/`: Unit and integration tests.
+- `LICENSE`: The MIT License file for the project.
 - `README.md`: This documentation file.
 
 The viewer uses PySide6's `QPixmap` to load images, which supports most common image formats (PNG, JPEG, BMP, GIF, etc.).
