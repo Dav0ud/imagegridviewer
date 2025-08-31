@@ -51,20 +51,27 @@ For development and running tests, you will also need:
     venv\Scripts\activate
     ```
 
-3. Install the dependencies:
+3. Install the required dependencies:
     ```bash
-    # This will install PySide6
+    # Install runtime dependencies (PySide6)
     pip install -r requirements.txt
+    ```
+
+4. For development or running tests, install the development dependencies:
+    ```bash
+    # Install development dependencies (pytest, pytest-qt)
+    pip install -r requirements-dev.txt
     ```
 
 ---
 
 ## Usage
 
-Run the application from the command line, providing a prefix for the image files and optionally a file containing the suffixes.
+Run the application from the root of the project directory. Provide a prefix for the image files and, optionally, a file containing the suffixes.
 
-    # Run from the root of the project directory
+    ```bash
     python3 -m src.igridvu.cli <image_prefix> [suffix_file] [--columns N]
+    ```
 
 ### Arguments:
 *   `image_prefix`: The common prefix for the image files. This can be just a name prefix (e.g., `image_`) or include a path (e.g., `path/to/my_data/run_1_`).
@@ -107,21 +114,18 @@ Imagine you have images representing different illumination components of a scen
 
 This project uses `pytest`. To run the test suite, first install the development dependencies and then run pytest.
 
-```bash
-# Install testing libraries (if not already done)
-pip install pytest pytest-qt
-
-# Run the tests
-python3 -m pytest
-```
+    ```bash
+    # Make sure you have installed development dependencies (see Installation)
+    python3 -m pytest
+    ```
 
 ---
 
 ## File Structure
 - `src/igridvu/`: The main application package.
   - `cli.py`: The command-line entry point.
-  - `main_window.py`: Defines the main application window and grid layout.
-  - `zoomable_view.py`: Defines the custom zoomable image widget.
+  - `main_window.py`: Defines the main `QMainWindow`, orchestrates the grid layout, and handles view synchronization and status bar updates.
+  - `zoomable_view.py`: Defines the custom `QGraphicsView` widget responsible for loading, displaying, and interacting with a single image (zoom, pan, pixel inspection).
 - `scripts/`: Helper scripts for development.
 - `requirements.txt`: Runtime dependencies for the application.
 - `requirements-dev.txt`: Development and testing dependencies.
@@ -144,10 +148,10 @@ This tool is designed for **comparative analysis**. Future development could inc
 ## Troubleshooting
 The application will attempt to display an error message directly within the grid cell if an image cannot be loaded. Common messages include:
 
--   **Not found:** The file path constructed from the prefix and suffix does not exist.
--   **Permission denied:** The application does not have the necessary rights to read the image file.
--   **File too large / Dimensions too large:** The image exceeds internal safety limits to prevent excessive memory usage.
--   **Unrecognized format / Cannot load:** The file is not a valid or supported image format, or it may be corrupted.
+-   `Not found`: The file path constructed from the prefix and suffix does not exist.
+-   `Permission denied`: The application does not have the necessary rights to read the image file.
+-   `File too large` / `Dimensions too large`: The image exceeds internal safety limits to prevent excessive memory usage.
+-   `Unrecognized format` / `Cannot load`: The file is not a valid or supported image format, or it may be corrupted.
 
 If images are not displaying correctly, first check the status bar by hovering over the cell to confirm the expected file path is correct.
 
