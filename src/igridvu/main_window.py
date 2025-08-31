@@ -160,6 +160,14 @@ class ImageGrid(QMainWindow):
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu("&File")
 
+        open_action = QAction("&Open Dataset...", self)
+        open_action.setShortcut(QKeySequence.Open)
+        open_action.setStatusTip("Open a different set of images by selecting one image from the dataset")
+        open_action.triggered.connect(self._prompt_open_dataset)
+        file_menu.addAction(open_action)
+
+        file_menu.addSeparator()
+
         save_action = QAction("&Save Snapshot...", self)
         save_action.setShortcut(QKeySequence.Save)
         save_action.setStatusTip("Save the current grid view as an image")
@@ -207,6 +215,66 @@ class ImageGrid(QMainWindow):
             self._populate_grid([])  # Clear the grid
             self.stacked_widget.setCurrentWidget(self.welcome_widget)
             self.setWindowTitle(self.app_name)
+
+    def _prompt_open_dataset(self):
+        """
+        Opens a file dialog to let the user select an image from a dataset,
+        then deduces the prefix and suffix file to load the new dataset.
+        """
+        # Start in the directory of the current prefix, if it exists.
+        start_dir = str(Path(self.pre_path).parent) if self.pre_path else ""
+
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open Image from Dataset",
+            start_dir,
+            "Images (*.png *.jpg *.jpeg *.bmp *.gif)"
+        )
+
+        if not file_path:
+            return  # User cancelled
+
+        selected_file = Path(file_path)
+        image_dir = selected_file.parent
+
+        # Find the corresponding suffix file
+        suffix_file_path = image_dir / "igridvu_suffix.txt"
+        if not suffix_file_path.is_file():
+            QMessageBox.warning(
+                self,
+                "Suffix File Not Found",
+                f"Could not find 'igridvu_suffix.txt' in the directory:\n{image_dir}"
+            )
+            return
+
+        # Read suffixes from the file
+        try:
+            with open(suffix_file_path, 'r', encoding='utf-8') as f:
+                suffixes = [line.strip() for line in f if line.strip()]
+        except IOError as e:
+            QMessageBox.critical(self, "Error Reading File", f"Could not read suffix file:\n{e}")
+            return
+
+        if not suffixes:
+            QMessageBox.warning(self, "Empty Suffix File", f"The suffix file is empty:\n{suffix_file_path}")
+            return
+
+        # Deduce the prefix by finding which suffix matches the selected file
+        new_prefix = None
+        for suffix in suffixes:
+            if selected_file.name.endswith(suffix):
+                prefix_len = len(selected_file.name) - len(suffix)
+                new_prefix = str(selected_file.parent / selected_file.name[:prefix_len])
+                break
+
+        if new_prefix is None:
+            QMessageBox.warning(self, "Could Not Deduce Prefix", f"The selected file '{selected_file.name}' does not match any suffix in '{suffix_file_path.name}'.")
+            return
+
+        # We have a new prefix and suffix file, update the main window state and reload
+        self.pre_path = new_prefix
+        self.suffix_file_path = str(suffix_file_path)
+        self._reload_grid()
 
     def _save_snapshot(self):
         """Saves a snapshot of the application window to a file."""

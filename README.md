@@ -1,6 +1,6 @@
 # Image Grid Viewer
 
-[![Python Version](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org/downloads/)
+[![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A lightweight, Python-based desktop tool for displaying a grid of images. It is designed to help researchers and developers quickly visualize and compare multiple images—such as different modalities of a scene or outputs of an algorithm—in a single, synchronized window.
@@ -25,6 +25,7 @@ A lightweight, Python-based desktop tool for displaying a grid of images. It is 
 
 This project's dependencies are managed in `pyproject.toml`. The installation commands below will handle them automatically.
 -   **Runtime:** Python 3.6+ and `PySide6`.
+-   **Runtime:** Python 3.8+ and `PySide6`.
 -   **Development:** `pytest` and `pytest-qt` for running the test suite.
 
 ---
@@ -70,6 +71,10 @@ pip install .
 ## Usage
 
 After installation, you can run the application using the `igridvu` command from anywhere.
+
+### Starting with a Dataset
+
+To load a set of images directly, provide the common image prefix:
 
 ```bash
 igridvu <image_prefix> [suffix_file] [--columns N]
