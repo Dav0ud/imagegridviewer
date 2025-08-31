@@ -304,15 +304,32 @@ class ImageGrid(QMainWindow):
 
     def _prompt_create_examples(self):
         """
-        Shows a dialog to confirm and then create the example image set.
+        Shows a dialog to let the user choose a location and then creates
+        the example image set after confirmation.
         """
-        target_dir = Path.cwd()
+        # Suggest a default location in the user's "Documents" directory.
+        # This is crucial for macOS apps which run from a read-only location.
+        default_location = QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation)
+
+        # Open a dialog to let the user select a directory.
+        target_dir_str = QFileDialog.getExistingDirectory(
+            self,
+            "Choose a Location for the Example Dataset",
+            default_location,
+            QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks,
+        )
+
+        if not target_dir_str:
+            return  # User cancelled the dialog
+
+        target_dir = Path(target_dir_str)
+
+        # Now, confirm with the user before writing files.
         reply = QMessageBox.information(
             self,
-            "Create Example Dataset",
+            "Confirm Example Dataset Creation",
             f"This will create a 'testscene' folder with example images in the "
-            f"current directory:\n\n{target_dir}\n\n"
-            "This is useful for demonstrating the application's features. Proceed?",
+            f"following directory:\n\n{target_dir}\n\nProceed?",
             QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
             QMessageBox.StandardButton.Ok,
         )

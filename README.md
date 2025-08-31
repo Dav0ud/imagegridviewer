@@ -24,7 +24,6 @@ A lightweight, Python-based desktop tool for displaying a grid of images. It is 
 ## Requirements
 
 This project's dependencies are managed in `pyproject.toml`. The installation commands below will handle them automatically.
--   **Runtime:** Python 3.6+ and `PySide6`.
 -   **Runtime:** Python 3.8+ and `PySide6`.
 -   **Development:** `pytest` and `pytest-qt` for running the test suite.
 
@@ -105,6 +104,15 @@ Imagine you have images representing different illumination components of a scen
     igridvu testscene/scene1_ --columns 3
     ```
 
+### Starting Without Arguments (GUI First)
+
+If you run `igridvu` without any arguments, the application will start with a welcome screen. From here, you can:
+-   **Create Example Dataset...**: This option (also available in the "Help" menu) will prompt you to choose a directory where it will create a `testscene` folder containing sample images. This is the recommended way to see the application's features in action.
+-   **Open Suffix Editor...**: This allows you to create or edit a suffix file.
+-   **Open Dataset...**: Use the "File" menu to open an image from an existing dataset.
+
+
+
 
 ### Interaction
 
@@ -114,6 +122,30 @@ Imagine you have images representing different illumination components of a scen
     -   The full path of the image under the cursor.
     -   The scene coordinates `(x, y)`.
     -   The RGB values at that coordinate for **every image** in the grid, identified by its label.
+
+---
+
+## Building a Standalone Application (macOS)
+
+You can package the Image Grid Viewer as a standalone macOS application (`.app` bundle) using PyInstaller. This allows you to distribute and run the application without needing a separate Python installation.
+
+**Prerequisites:**
+- You must be inside your activated virtual environment.
+- You must have the development dependencies installed, as described in the **Installation** section (`pip install -e ".[dev]"`).
+
+**Build Process:**
+
+1.  The first time you build, or if you need to regenerate the build configuration, run the following command. This creates an `igridvu.spec` file which controls the build settings.
+    ```bash
+    pyinstaller run_app.py --name igridvu --windowed --noconfirm
+    ```
+
+2.  **(Recommended)** For all subsequent builds, use the `igridvu.spec` file directly. This file has been optimized to exclude unused parts of the PySide6 library, significantly reducing the final application size.
+    ```bash
+    pyinstaller igridvu.spec --noconfirm
+    ```
+
+3.  Once the build process is complete, you will find the application bundle inside the `dist/` directory: `dist/igridvu.app`. You can drag this to your Applications folder and run it like any other macOS app.
 
 ---
 

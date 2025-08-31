@@ -334,20 +334,27 @@ def test_welcome_page_buttons_connected(qtbot):
 
 @pytest.mark.parametrize("load_answer", [QMessageBox.StandardButton.Yes, QMessageBox.StandardButton.No])
 @patch('igridvu.main_window.create_example_dataset')
-def test_create_example_dataset_action_and_load(mock_create_dataset, qtbot, monkeypatch, load_answer):
+def test_create_example_dataset_action_and_load(mock_create_dataset, qtbot, monkeypatch, tmp_path: Path, load_answer):
     """Tests the full flow of creating and optionally loading the example dataset."""
     # 1. Setup
     grid = ImageGrid("", [], "dummy.txt")
     qtbot.addWidget(grid)
 
     # 2. Mock dependencies
-    # Mock the dialogs and the file creation function
+    # Mock all dialogs to prevent them from blocking the test run
+    monkeypatch.setattr(
+        QFileDialog,
+        'getExistingDirectory',
+        lambda *args, **kwargs: str(tmp_path)
+    )
     mock_info = Mock(return_value=QMessageBox.StandardButton.Ok)
     mock_question = Mock(return_value=load_answer)
     monkeypatch.setattr(QMessageBox, 'information', mock_info)
     monkeypatch.setattr(QMessageBox, 'question', mock_question)
 
-    example_prefix = str(Path.cwd() / "testscene" / "scene1_")
+    # The mocked create_example_dataset will return this path, using tmp_path
+    # for a clean, isolated test environment.
+    example_prefix = str(tmp_path / "testscene" / "scene1_")
     mock_create_dataset.return_value = (True, "Success!", example_prefix)
 
     # Mock the reload function to check if it's called
@@ -360,7 +367,7 @@ def test_create_example_dataset_action_and_load(mock_create_dataset, qtbot, monk
 
     # 4. Assertions
     mock_info.assert_called_once()  # The first confirmation dialog
-    mock_create_dataset.assert_called_once()
+    mock_create_dataset.assert_called_once_with(tmp_path)
     mock_question.assert_called_once()  # The "load now?" dialog
 
     if load_answer == QMessageBox.StandardButton.Yes:
