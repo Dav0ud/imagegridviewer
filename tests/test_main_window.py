@@ -9,12 +9,12 @@ Then, from the command line in the project directory, run:
   python3 -m pytest
 """
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, MagicMock
 
 import pytest
-from PySide6.QtCore import Qt, QPoint, QPointF
+from PySide6.QtCore import Qt, QPoint, QPointF, QStandardPaths
 from PySide6.QtGui import QColor, QWheelEvent
-from PySide6.QtWidgets import QApplication, QGridLayout
+from PySide6.QtWidgets import QApplication, QGridLayout, QFileDialog
 
 from igridvu import ImageGrid, ZoomableView
 
@@ -220,3 +220,92 @@ def test_image_grid_status_bar_pixel_info(tmp_path: Path, qtbot, create_dummy_im
 
     # The status bar should fall back to showing just the path
     assert status_bar.currentMessage() == f"Path: {view1.img_path}"
+
+    # Test behavior when one view has color and another doesn't (e.g., cursor out of bounds)
+    view1.get_color_at.return_value = QColor(10, 20, 30)
+    view2.get_color_at.return_value = None
+    view1.mouseMovedAtScenePos.emit(scene_pos)
+    expected_msg_partial = (
+        f"Path: {view1.img_path}  Coords: (5, 15)  |  "
+        f"{view1.label_text}: (10,20,30) | {view2.label_text}: ---"
+    )
+    assert status_bar.currentMessage() == expected_msg_partial
+
+
+def test_image_grid_empty_suffixes(qtbot):
+    """Tests that ImageGrid handles an empty list of suffixes gracefully."""
+    grid = ImageGrid("pre_path", [])
+    qtbot.addWidget(grid)
+    views = grid.findChildren(ZoomableView)
+    assert len(views) == 0
+    # Check that the status bar shows the default message
+    assert grid.statusBar().currentMessage() == grid.status_message
+
+
+def test_image_grid_window_title(qtbot):
+    """Tests that the ImageGrid window has an appropriate title."""
+    pre_path = "/some/test/directory/prefix_"
+    grid = ImageGrid(pre_path, [])
+    qtbot.addWidget(grid)
+
+    # Assuming the title should contain the app name and the prefix path
+    assert "Image Grid Viewer" in grid.windowTitle()
+    assert pre_path in grid.windowTitle()
+
+
+def test_image_grid_view_labels(qtbot):
+    """Tests that the labels for each view are set correctly from the suffixes."""
+    pre_path = "prefix_"
+    suffixes = ["a.png\n", "b.png\n"]
+    grid = ImageGrid(pre_path, suffixes)
+    qtbot.addWidget(grid)
+
+    assert grid.views[0].label_text == "a"
+    assert grid.views[1].label_text == "b"
+
+
+@pytest.mark.parametrize(
+    "dialog_filename, save_return, expected_status_contains, save_called",
+    [
+        ("snapshot.png", True, "Snapshot saved to", True),
+        ("", True, "Ready.", False),  # Cancel case
+        ("snapshot.png", False, "Error: Failed to save snapshot", True),
+    ],
+    ids=["success", "cancel", "failure"]
+)
+def test_save_snapshot(qtbot, tmp_path, monkeypatch, dialog_filename, save_return, expected_status_contains, save_called):
+    """Tests the _save_snapshot method for success, cancellation, and failure."""
+    # 1. Setup
+    grid = ImageGrid("pre_path", ["a.png\n"])
+    qtbot.addWidget(grid)
+    grid.show()
+    qtbot.waitActive(grid)
+
+    save_path = tmp_path / dialog_filename if dialog_filename else ""
+
+    # 2. Mock dependencies
+    # Mock QFileDialog to return a predictable path or cancellation
+    monkeypatch.setattr(
+        QFileDialog,
+        'getSaveFileName',
+        lambda *args, **kwargs: (str(save_path), "Images (*.png *.jpg *.bmp)")
+    )
+
+    # Mock the `grab` method to return a mock pixmap whose `save` method can be tracked
+    mock_pixmap = MagicMock()
+    mock_pixmap.save.return_value = save_return
+    monkeypatch.setattr(grid, 'grab', lambda: mock_pixmap)
+
+    # Mock QStandardPaths to avoid dependency on the user's "Pictures" folder
+    monkeypatch.setattr(QStandardPaths, 'writableLocation', lambda location: str(tmp_path))
+
+    # 3. Action
+    grid._save_snapshot()
+
+    # 4. Assertions
+    if save_called:
+        mock_pixmap.save.assert_called_once_with(str(save_path))
+    else:
+        mock_pixmap.save.assert_not_called()
+
+    assert expected_status_contains in grid.statusBar().currentMessage()
