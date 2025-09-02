@@ -14,7 +14,9 @@ VENV_DIR="venv"
 PYTEST_CACHE=".pytest_cache"
 BUILD_DIR="build"
 DIST_DIR="dist"
-EGG_INFO_DIR="src/imagegridviewer.egg-info"
+#FOSS-BOM shall be published in repository so we don't remove it
+#BOM_FILE="FOSS-BOM.md"
+EGG_INFO_DIR="src/igridvu.egg-info"
 
 # --- Main Logic ---
 
@@ -23,7 +25,19 @@ EGG_INFO_DIR="src/imagegridviewer.egg-info"
 safe_remove() {
     if [ -e "$1" ]; then
         echo "Removing $2 ($1)..."
-        rm -rf "$1"
+        # Add a retry loop to handle potential file locks, especially on macOS
+        # where the OS may hold onto a .app bundle for a moment after it closes.
+        for i in {1..3}; do
+            rm -rf "$1" && break # Exit loop if successful
+            if [ ! -e "$1" ]; then break; fi # Also exit if it's gone
+            echo "Could not remove '$1' on attempt $i. Retrying in 1 second..."
+            sleep 1
+        done
+
+        if [ -e "$1" ]; then
+            echo "Error: Failed to remove '$1' after multiple attempts." >&2
+            exit 1
+        fi
     else
         echo "$2 ($1) not found, skipping."
     fi
@@ -34,6 +48,7 @@ safe_remove "$VENV_DIR" "Virtual environment"
 safe_remove "$PYTEST_CACHE" "pytest cache"
 safe_remove "$BUILD_DIR" "PyInstaller build directory"
 safe_remove "$DIST_DIR" "PyInstaller dist directory"
+#safe_remove "$BOM_FILE" "Generated FOSS BOM file"
 safe_remove "$EGG_INFO_DIR" "Editable install metadata"
 
 # Remove glob patterns (e.g., *.spec)

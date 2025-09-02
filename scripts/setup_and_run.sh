@@ -40,10 +40,26 @@ echo "Step 2: Activating virtual environment and running subsequent steps..."
     # Add --no-compile to work around a packaging issue in PySide6 where a template file causes a SyntaxError.
     pip install --no-compile -e ".[dev]"
 
-    # 5. Run the application without input parameters
-    echo "Step 5: Launching the application..."
-    # Using run_app.py is reliable for development before the package is on the system PATH
-    python run_app.py
+    # 5. Ask user if they want to build a standalone app (macOS)
+    if [[ "$(uname)" == "Darwin" ]]; then
+        read -p "Do you want to build a standalone macOS app? (y/N) " -n 1 -r
+        echo "" # Move to a new line after input
+
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo "Step 5: Building macOS application with PyInstaller..."
+            pyinstaller run_app.py --name igridvu --windowed --noconfirm
+
+            echo "Step 6: Launching the built application..."
+            # Use the -W flag to wait for the application to close before continuing.
+            open -W dist/igridvu.app
+        else
+            echo "Step 5: Launching the application from source..."
+            python run_app.py
+        fi
+    else
+        echo "Step 5: Launching the application from source..."
+        python run_app.py
+    fi
 )
 
 echo "" # Add a newline for spacing
