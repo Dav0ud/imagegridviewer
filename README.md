@@ -31,15 +31,35 @@ This project's dependencies are managed in `pyproject.toml`. The installation co
 
 ## Installation
 
-1. Clone the repository:
+### Clone the Repository
+
    ```bash
    git clone https://github.com/Dav0ud/imagegridviewer.git
    cd imagegridviewer
    ```
 
-2. Create and activate a virtual environment (recommended):
+### Setup
+
+#### Automated Setup (Recommended)
+
+For a quick and easy setup, you can use the provided shell script. This will create a virtual environment, install all necessary dependencies, and launch the application for you.
+
+From the project root directory, run:
+
+> **Note:** The `.sh` scripts are for macOS and Linux users. Windows users should
+> follow the Manual Setup instructions for now.
+
+```bash
+# This single command handles the entire setup and run process:
+bash scripts/setup_and_run.sh
+```
+
+This is the recommended way to get started with development. For more control over the process, see the manual steps below.
+
+#### Manual Setup
+1. Create and activate a virtual environment (recommended):
     ```bash
-    # For Unix/macOS
+    # For macOS/Linux
     python3 -m venv venv
     source venv/bin/activate
 
@@ -48,12 +68,12 @@ This project's dependencies are managed in `pyproject.toml`. The installation co
     venv\Scripts\activate
     ```
 
-3. Upgrade `pip` to the latest version within the virtual environment. This helps prevent potential installation issues.
+2. Upgrade `pip` to the latest version within the virtual environment. This helps prevent potential installation issues.
    ```bash
    python -m pip install --upgrade pip
    ```
 
-4. Install the project. For development, install it in "editable" mode (`-e`), which allows your code changes to be reflected immediately without reinstalling. The `[dev]` part includes testing dependencies like `pytest`.
+3. Install the project. For development, install it in "editable" mode (`-e`), which allows your code changes to be reflected immediately without reinstalling. The `[dev]` part includes testing dependencies like `pytest`.
 ```bash
 # Install for development
 pip install -e ".[dev]"
@@ -160,6 +180,22 @@ pytest
 
 ---
 
+## Cleaning the Environment
+
+A helper script is provided to remove all generated files, including the virtual environment (`venv`), build artifacts (`build`, `dist`), test caches, and editable install metadata. This is useful when you want to reset your project to a clean state.
+
+To run the cleanup script from the project root directory:
+
+```bash
+# Make the script executable (only needs to be done once)
+chmod +x scripts/clean.sh
+
+# Run the script
+./scripts/clean.sh
+```
+
+---
+
 ## File Structure
 - `pyproject.toml`: The heart of the project, defining metadata, dependencies, and entry points.
 - `src/igridvu/`: The main application source code package.
@@ -186,6 +222,19 @@ This tool is designed for **comparative analysis**. Future development could inc
 ---
 
 ## Troubleshooting
+
+### Installation Issues
+
+-   **`SyntaxError` during `pip install`:** If you encounter a `SyntaxError` related to a `.tmpl.py` file within the `PySide6` package during installation, it is due to a known packaging issue where `pip` attempts to byte-compile a non-Python template file.
+
+    To resolve this, install the dependencies using the `--no-compile` flag:
+    ```bash
+    pip install --no-compile -e ".[dev]"
+    ```
+    This flag prevents `pip` from running the problematic byte-compilation step without affecting the application's functionality.
+
+### Runtime Image Loading
+
 The application will attempt to display an error message directly within the grid cell if an image cannot be loaded. Common messages include:
 
 -   `Not found`: The file path constructed from the prefix and suffix does not exist.
