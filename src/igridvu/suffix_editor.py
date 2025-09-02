@@ -2,6 +2,7 @@
 """
 A dialog for editing the list of image suffixes.
 """
+from itertools import islice
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QListWidget, QListWidgetItem,
                              QPushButton, QHBoxLayout, QDialogButtonBox,
                              QAbstractItemView, QMessageBox)
@@ -55,7 +56,17 @@ class SuffixEditorDialog(QDialog):
         """Loads suffixes from the file into the list widget."""
         try:
             with open(self.suffix_file_path, 'r', encoding='utf-8') as f:
-                suffixes = [line.strip() for line in f if line.strip()]
+                # Security: Use islice to prevent reading a massive file into memory.
+                suffixes = [line.strip() for line in islice(f, self.max_suffixes) if line.strip()]
+                # Check if there are more lines in the file beyond the max limit
+                if f.readline():
+                    QMessageBox.information(
+                        self,
+                        "Suffix Limit Reached",
+                        f"The suffix file contains more than {self.max_suffixes} entries.\n"
+                        f"Only the first {self.max_suffixes} have been loaded into the editor."
+                    )
+
                 for suffix in suffixes:
                     item = QListWidgetItem(suffix, self.list_widget)
                     item.setFlags(item.flags() | Qt.ItemIsEditable)

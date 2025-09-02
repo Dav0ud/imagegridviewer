@@ -14,9 +14,16 @@ from unittest.mock import Mock, MagicMock, patch
 import pytest
 from PySide6.QtCore import QPoint, QPointF, QStandardPaths, Qt
 from PySide6.QtGui import QAction, QColor, QWheelEvent
-from PySide6.QtWidgets import QApplication, QFileDialog, QGridLayout, QMessageBox, QPushButton
+from PySide6.QtWidgets import (QApplication, QFileDialog, QGridLayout,
+                             QMessageBox, QPushButton, QGraphicsTextItem)
 
 from igridvu import ImageGrid, ZoomableView
+
+
+def get_scene_text(view):
+    """Helper to extract text from the first QGraphicsTextItem in a scene."""
+    text_items = [item for item in view._scene.items() if isinstance(item, QGraphicsTextItem)]
+    return text_items[0].toPlainText() if text_items else ""
 
 
 def test_image_grid_widget_creation(qtbot):
@@ -330,6 +337,62 @@ def test_welcome_page_buttons_connected(qtbot):
 
     qtbot.mouseClick(create_example_button, Qt.LeftButton)
     grid._prompt_create_examples.assert_called_once()
+
+
+def test_path_traversal_is_blocked(tmp_path: Path, qtbot, create_dummy_image):
+    """
+    Tests that a suffix attempting path traversal is caught and an error is displayed.
+    """
+    # 1. Setup
+    # Create a dummy file that the traversal will attempt to access.
+    secret_file_path = tmp_path / "secret.txt"
+    secret_file_path.touch()
+
+    # The legitimate image directory
+    image_dir = tmp_path / "images"
+    image_dir.mkdir()
+    create_dummy_image(image_dir, filename="real.png")
+
+    # The prefix points to the legitimate directory
+    pre_path = str(image_dir)
+    # The suffix attempts to traverse up and out
+    suffixes = ["../secret.txt"]
+
+    # 2. Action
+    grid = ImageGrid(pre_path, suffixes, suffix_file_path="dummy.txt")
+    qtbot.addWidget(grid)
+
+    # 3. Assertions
+    assert len(grid.views) == 1
+    view = grid.views[0]
+
+    # The view should not have a pixmap
+    assert not view.has_image()
+
+    # The view should display the path traversal error message
+    scene_text = get_scene_text(view)
+    assert "Path traversal" in scene_text
+    assert "attempt" in scene_text
+
+
+def test_open_dataset_flow(qtbot, monkeypatch, tmp_path: Path):
+    """Tests the full flow of opening a new dataset via the file dialog."""
+    grid = ImageGrid("old_prefix", ["old.png"], "old_suffix.txt")
+    qtbot.addWidget(grid)
+    new_dataset_dir = tmp_path / "new_dataset"
+    new_dataset_dir.mkdir()
+    new_prefix_str = str(new_dataset_dir / "image_")
+    suffix_file = new_dataset_dir / "igridvu_suffix.txt"
+    suffixes = ["a.png", "b.png"]
+    suffix_file.write_text("\n".join(suffixes))
+    selected_file = new_dataset_dir / "image_a.png"
+    selected_file.touch()
+    monkeypatch.setattr(QFileDialog, 'getOpenFileName', lambda *args, **kwargs: (str(selected_file), ""))
+    grid._reload_grid = Mock()
+    grid._prompt_open_dataset()
+    assert grid.pre_path == new_prefix_str
+    assert grid.suffix_file_path == str(suffix_file)
+    grid._reload_grid.assert_called_once()
 
 
 @pytest.mark.parametrize("load_answer", [QMessageBox.StandardButton.Yes, QMessageBox.StandardButton.No])

@@ -77,8 +77,10 @@ def test_create_example_dataset_permission_error_on_folder(tmp_path: Path, qtbot
     """
     Tests that create_example_dataset handles OSError during folder creation.
     """
-    # 1. Setup: Mock os.makedirs to raise an error
-    monkeypatch.setattr(os, "makedirs", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("Permission denied")))
+    # 1. Setup: Mock Path.mkdir to raise an error
+    def mock_mkdir(*args, **kwargs):
+        raise OSError("Permission denied")
+    monkeypatch.setattr(Path, "mkdir", mock_mkdir)
     # 2. Action
     success, message, prefix_path = create_example_dataset(tmp_path)
     # 3. Assertions

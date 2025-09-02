@@ -126,20 +126,51 @@ class ImageGrid(QMainWindow):
     def _populate_grid(self, suffixes: List[str]):
         """Populates the grid with views for the given suffixes."""
         self._clear_grid()
-        prefix_is_dir = os.path.isdir(self.pre_path)
+        prefix_path = Path(self.pre_path)
+
+        # Security: Define the base directory to prevent path traversal.
+        # All resolved image paths must be within this directory.
+        try:
+            base_dir = prefix_path.resolve() if prefix_path.is_dir() else prefix_path.parent.resolve()
+        except (FileNotFoundError, OSError):
+            # If the base path doesn't exist, we can't load anything.
+            # This can happen if the prefix points to a deleted directory.
+            base_dir = None
 
         for i, suffix in enumerate(suffixes):
             row = i // self.columns
             col = i % self.columns
 
             clean_suffix = suffix.rstrip()
-            # If the prefix is a directory, join paths. Otherwise, concatenate.
-            full_path = (os.path.join(self.pre_path, clean_suffix)
-                         if prefix_is_dir else self.pre_path + clean_suffix)
+            # This check-then-act logic is a Time-of-check-to-time-of-use (TOCTOU)
+            # race condition. For a local desktop app, the risk is negligible,
+            # but it's an anti-pattern in security-sensitive contexts.
+            if prefix_path.is_dir():
+                full_path_str = str(prefix_path / clean_suffix)
+            else:
+                full_path_str = self.pre_path + clean_suffix
 
             label_text = Path(clean_suffix).stem
+            error_msg = None
 
-            view = ZoomableView(full_path, label_text)
+            if base_dir:
+                try:
+                    # Security: Resolve the path and check it's within the base directory.
+                    resolved_path = Path(full_path_str).resolve()
+                    # This check prevents path traversal attacks (e.g., suffix being "../...").
+                    # It raises ValueError if the path is not a sub-path.
+                    resolved_path.relative_to(base_dir)
+                except ValueError:
+                    error_msg = "Path traversal\nattempt"
+                except (FileNotFoundError, OSError):
+                    # This can happen if a suffix points to a non-existent path component.
+                    # This is a normal "not found" case that ZoomableView will handle,
+                    # so we don't need to set a pre-emptive error here.
+                    pass
+            else:
+                error_msg = "Base path\nnot found"
+
+            view = ZoomableView(full_path_str, label_text, error=error_msg)
             view.hovered.connect(self.update_status_bar)
             view.mouseMovedAtScenePos.connect(self._update_pixel_info)
             view.viewRectChanged.connect(self.sync_views)
@@ -250,7 +281,15 @@ class ImageGrid(QMainWindow):
         # Read suffixes from the file
         try:
             with open(suffix_file_path, 'r', encoding='utf-8') as f:
-                suffixes = [line.strip() for line in f if line.strip()]
+                # Security: Use islice to prevent reading a massive file into memory.
+                suffixes = [line.strip() for line in islice(f, MAX_IMAGES) if line.strip()]
+                if f.readline():
+                    QMessageBox.warning(
+                        self,
+                        "Suffix Limit Reached",
+                        f"The suffix file has more than {MAX_IMAGES} lines.\n"
+                        f"Only the first {MAX_IMAGES} will be considered for this dataset."
+                    )
         except IOError as e:
             QMessageBox.critical(self, "Error Reading File", f"Could not read suffix file:\n{e}")
             return

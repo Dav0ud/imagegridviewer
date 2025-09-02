@@ -25,7 +25,7 @@ class ZoomableView(QGraphicsView):
     MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB
     MAX_IMAGE_DIMENSION = 10000  # Max 10k pixels for width or height
 
-    def __init__(self, img_path: str, label_text: str):
+    def __init__(self, img_path: str, label_text: str, error: Optional[str] = None):
         super().__init__()
         self.img_path = img_path
         self.label_text = label_text
@@ -36,7 +36,10 @@ class ZoomableView(QGraphicsView):
         self._is_handling_wheel = False
         self._image_aspect_ratio = 0.0
 
-        self._load_safe_pixmap()
+        if error:
+            self._show_error_message(error)
+        else:
+            self._load_safe_pixmap()
 
         if self.has_image():
             pixmap_size = self._pixmap_item.pixmap().size()
@@ -78,13 +81,17 @@ class ZoomableView(QGraphicsView):
         """Returns True if a valid pixmap was loaded."""
         return self._pixmap_item is not None
 
+    def _show_error_message(self, error_msg: str):
+        """Displays a given error message in the scene."""
+        filename = Path(self.img_path).name
+        text_item = self._scene.addText(f"{error_msg}\n{filename}")
+        text_item.setDefaultTextColor(QColor(Qt.red))
+
     def _load_safe_pixmap(self):
         """Safely loads the pixmap, checking for potential resource issues."""
         error_msg = self._get_loading_error()
         if error_msg:
-            filename = Path(self.img_path).name
-            text_item = self._scene.addText(f"{error_msg}\n{filename}")
-            text_item.setDefaultTextColor(QColor(Qt.red))
+            self._show_error_message(error_msg)
         else:
             # All checks passed. Load QImage first to be the source of truth
             # for pixel data, which is more reliable than pixmap.toImage().

@@ -53,7 +53,7 @@ def create_example_dataset(base_dir: Path) -> tuple[bool, str, str]:
     suffix_filename = scene_dir / "igridvu_suffix.txt"
 
     try:
-        os.makedirs(scene_dir, exist_ok=True)
+        scene_dir.mkdir(parents=True, exist_ok=True)
 
         for suffix in SUFFIXES:
             filename = f"{prefix_path}{suffix}"
