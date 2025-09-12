@@ -7,9 +7,10 @@ from typing import List, cast
 from pathlib import Path
 from itertools import islice
 
-from PySide6.QtWidgets import (QWidget, QGridLayout, QApplication,
-                             QMainWindow, QVBoxLayout, QFileDialog, QMessageBox,
-                             QStackedWidget, QPushButton, QLabel)
+from PySide6.QtWidgets import \
+    (QWidget, QGridLayout, QApplication,
+     QMainWindow, QVBoxLayout, QFileDialog, QMessageBox,
+     QStackedWidget, QPushButton, QLabel)
 from PySide6.QtGui import QAction, QKeySequence, QFont
 from PySide6.QtCore import Qt, QRectF, QPointF, QStandardPaths, QSize
 
@@ -97,6 +98,10 @@ class ImageGrid(QMainWindow):
         )
         instructions_label.setAlignment(Qt.AlignCenter)
 
+        open_dataset_button = QPushButton("Open Dataset...")
+        open_dataset_button.setFixedSize(QSize(220, 32))
+        open_dataset_button.clicked.connect(self._prompt_open_dataset)
+
         open_editor_button = QPushButton("Open Suffix Editor...")
         open_editor_button.setFixedSize(QSize(220, 32))
         open_editor_button.clicked.connect(self._open_suffix_editor)
@@ -107,6 +112,7 @@ class ImageGrid(QMainWindow):
 
         layout.addWidget(title_label)
         layout.addWidget(instructions_label)
+        layout.addWidget(open_dataset_button, 0, Qt.AlignCenter)
         layout.addWidget(open_editor_button, 0, Qt.AlignCenter)
         layout.addWidget(create_example_button, 0, Qt.AlignCenter)
 
@@ -170,14 +176,18 @@ class ImageGrid(QMainWindow):
             else:
                 error_msg = "Base path\nnot found"
 
-            view = ZoomableView(full_path_str, label_text, error=error_msg)
-            view.hovered.connect(self.update_status_bar)
-            view.mouseMovedAtScenePos.connect(self._update_pixel_info)
-            view.viewRectChanged.connect(self.sync_views)
+            view = ZoomableView(label_text=label_text, img_path=full_path_str, error=error_msg)
+            self._connect_view_signals(view)
 
             # AlignTop creates a masonry-like layout for images of different aspect ratios
             self.grid_layout.addWidget(view, row, col, Qt.AlignTop)
             self.views.append(view)
+
+    def _connect_view_signals(self, view: ZoomableView):
+        """Connects all necessary signals for a ZoomableView instance."""
+        view.hovered.connect(self.update_status_bar)
+        view.mouseMovedAtScenePos.connect(self._update_pixel_info)
+        view.viewRectChanged.connect(self.sync_views)
 
     def _center_on_screen(self):
         """Centers the window on the primary screen."""
@@ -298,13 +308,15 @@ class ImageGrid(QMainWindow):
             QMessageBox.warning(self, "Empty Suffix File", f"The suffix file is empty:\n{suffix_file_path}")
             return
 
-        # Deduce the prefix by finding which suffix matches the selected file
+        # Deduce the prefix by finding the longest matching suffix
+        best_match_len = -1
         new_prefix = None
         for suffix in suffixes:
             if selected_file.name.endswith(suffix):
-                prefix_len = len(selected_file.name) - len(suffix)
-                new_prefix = str(selected_file.parent / selected_file.name[:prefix_len])
-                break
+                if len(suffix) > best_match_len:
+                    best_match_len = len(suffix)
+                    prefix_len = len(selected_file.name) - len(suffix)
+                    new_prefix = str(selected_file.parent / selected_file.name[:prefix_len])
 
         if new_prefix is None:
             QMessageBox.warning(self, "Could Not Deduce Prefix", f"The selected file '{selected_file.name}' does not match any suffix in '{suffix_file_path.name}'.")
@@ -411,23 +423,27 @@ class ImageGrid(QMainWindow):
             self.statusBar().showMessage(self.status_message)
 
     def _update_pixel_info(self, scene_pos: QPointF):
-        """Updates status bar with pixel info from all views at a given scene coordinate."""
+        """Updates pixel info label on each view at a given scene coordinate."""
         sender_view = cast(ZoomableView, self.sender())
         if not isinstance(sender_view, ZoomableView) or not sender_view.has_image():
             return
 
-        if sender_view.get_color_at(scene_pos) is None:
-            self.update_status_bar(sender_view.img_path)
-            return
+        display_x = int(scene_pos.x())
+        display_y = int(scene_pos.y())
 
-        x, y = int(scene_pos.x()), int(scene_pos.y())
-
-        def format_pixel_data(view: ZoomableView) -> str:
-            """Helper to format pixel data for a single view."""
+        for view in self.views:
             color = view.get_color_at(scene_pos)
-            value_str = f"({color.red()},{color.green()},{color.blue()})" if color else "---"
-            return f"{view.label_text}: {value_str}"
+            if color:
+                # Assuming RGBA, show all 4 values if alpha exists
+                if view._image and view._image.hasAlphaChannel():
+                    value_str = f"({color.red()},{color.green()},{color.blue()},{color.alpha()})"
+                else:
+                    value_str = f"({color.red()},{color.green()},{color.blue()})"
+                info_str = f"({display_x},{display_y}) {value_str}"
+                view.set_pixel_info(info_str)
+            else:
+                # If get_color_at returns None, display -1
+                view.set_pixel_info(f"({display_x},{display_y}) -1")
 
-        pixel_info_str = " | ".join(format_pixel_data(v) for v in self.views)
-
-        self.statusBar().showMessage(f"Path: {sender_view.img_path}  Coords: ({x}, {y})  |  {pixel_info_str}")
+        # Update status bar with path of the sender view
+        self.statusBar().showMessage(f"Path: {sender_view.img_path}")

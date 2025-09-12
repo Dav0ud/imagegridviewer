@@ -13,19 +13,20 @@ A lightweight, Python-based desktop tool for displaying a grid of images. It is 
 ## Key Features
 
 -   **Synchronized Grid:** Display multiple images in a scrollable grid. Zooming and panning are synchronized across all images for precise, pixel-level comparison.
--   **Synchronized Pixel Inspector:** Move your cursor over any image to see the pixel coordinates and RGB values for that location across *all* images in the grid, displayed live in the status bar.
--   **Persistent Labels:** Each image view is overlaid with a clear, non-zooming label derived from its filename, so you always know which modality you're looking at.
--   **Customizable Layout:** Easily adjust the number of grid columns via the `--columns` argument.
--   **Robust Error Handling:** Gracefully handles common issues like missing files, permission errors, and unsupported formats by displaying an informative message in the respective grid cell without crashing.
--   **Simple CLI:** Launch the viewer directly from your terminal with a straightforward command-line interface.
+-   **Synchronized Pixel Inspector:** Move your cursor over any image to see the pixel coordinates and RGB/RGBA values for that location across *all* images in the grid. For pixels outside an image's bounds, "-1" is displayed.
+-   **Channel Viewing:** Isolate and view individual Red, Green, Blue, or Alpha channels of an image for detailed analysis.
+-   **Persistent Labels:** Each image view is overlaid with a clear, non-zooming label derived from its filename, ensuring easy identification.
+-   **Customizable Layout:** Adjust the number of grid columns via the `--columns` argument.
+-   **Robust Error Handling:** Gracefully handles common issues (missing files, permission errors, unsupported formats) by displaying informative messages directly in the grid cell.
+-   **Simple CLI:** Launch the viewer directly from your terminal.
 
 ---
 
 ## Requirements
 
-This project's dependencies are managed in `pyproject.toml`. The installation commands below will handle them automatically.
--   **Runtime:** Python 3.8+ and `PySide6`.
--   **Development:** `pytest` and `pytest-qt` for running the test suite.
+Dependencies are managed in `pyproject.toml` and handled automatically by installation commands.
+-   **Runtime:** Python 3.8+, PySide6.
+-   **Development:** pytest, pytest-qt (for testing).
 
 ---
 
@@ -42,19 +43,16 @@ This project's dependencies are managed in `pyproject.toml`. The installation co
 
 #### Automated Setup (Recommended)
 
-For a quick and easy setup, you can use the provided shell script. This will create a virtual environment, install all necessary dependencies, and launch the application for you.
+Use the provided shell script for quick setup, virtual environment creation, dependency installation, and application launch.
 
-From the project root directory, run:
-
-> **Note:** The `.sh` scripts are for macOS and Linux users. Windows users should
-> follow the Manual Setup instructions for now.
+**Note:** `.sh` scripts are for macOS/Linux. Windows users, see Manual Setup.
 
 ```bash
-# This single command handles the entire setup and run process:
+# Handles entire setup and run process:
 bash scripts/setup_and_run.sh
 ```
 
-This is the recommended way to get started with development. For more control over the process, see the manual steps below.
+Recommended for quick starts. For more control, see Manual Setup.
 
 #### Manual Setup
 1. Create and activate a virtual environment (recommended):
@@ -89,92 +87,87 @@ pip install .
 
 ## Usage
 
-After installation, you can run the application using the `igridvu` command from anywhere.
+After installation, run `igridvu` from your terminal.
 
 ### Starting with a Dataset
 
-To load a set of images directly, provide the common image prefix:
+To load images directly:
 
 ```bash
 igridvu <image_prefix> [suffix_file] [--columns N]
 ```
 
 ### Arguments:
-*   `image_prefix`: The common prefix for the image files. This can be just a name prefix (e.g., `image_`) or include a path (e.g., `path/to/my_data/run_1_`).
-*   `suffix_file`: (Optional) A text file containing image suffixes, one per line. Defaults to `igridvu_suffix.txt` located in the same directory as the `image_prefix`. If `image_prefix` has no path, it looks in the current directory.
-*   `--columns N`, `-c N`: (Optional) Sets the number of columns in the grid. Defaults to 4.
+*   `image_prefix`: Common prefix for image files (e.g., `image_` or `path/to/my_data/run_1_`).
+*   `suffix_file`: (Optional) Text file with image suffixes, one per line. Defaults to `igridvu_suffix.txt` in the `image_prefix` directory (or current directory if no path).
+*   `--columns N`, `-c N`: (Optional) Sets grid columns (default: 4).
 
 ### Example:
-Imagine you have images representing different illumination components of a scene, all located in a `testscene` directory: `testscene/scene1_diffuse.png`, `testscene/scene1_specular.png`, etc.
+Imagine images like `testscene/scene1_diffuse.png`, `testscene/scene1_specular.png`.
 
-1.  Create a suffix file named `igridvu_suffix.txt` in the `testscene` directory that lists the unique parts of the filenames:
+1.  Create `igridvu_suffix.txt` in `testscene`:
     ```text
     diffuse.png
     specular.png
     shadow.png
     ...
     ```
-2.  Run the viewer from your terminal, providing the path and common prefix. The tool will automatically find the suffix file.
+2.  Run:
     ```bash
-    # The prefix includes the directory path
     igridvu testscene/scene1_
     ```
-    To display the images in a 3-column grid instead of the default 4:
+    For 3 columns:
     ```bash
     igridvu testscene/scene1_ --columns 3
     ```
 
 ### Starting Without Arguments (GUI First)
 
-If you run `igridvu` without any arguments, the application will start with a welcome screen. From here, you can:
--   **Create Example Dataset...**: This option (also available in the "Help" menu) will prompt you to choose a directory where it will create a `testscene` folder containing sample images. This is the recommended way to see the application's features in action.
--   **Open Suffix Editor...**: This allows you to create or edit a suffix file.
--   **Open Dataset...**: Use the "File" menu to open an image from an existing dataset.
-
+Running `igridvu` without arguments opens a welcome screen. From here, you can:
+-   **Create Example Dataset...**: (Also in "Help" menu) Choose a directory to create a `testscene` folder with sample images. Recommended for seeing features in action.
+-   **Open Suffix Editor...**: Create or edit a suffix file.
+-   **Open Dataset...**: (Also in "File" menu) Open an image from an existing dataset.
 
 
 
 ### Interaction
 
--   **Zoom:** Use the mouse wheel to zoom in and out. The view zooms towards your cursor.
--   **Pan:** Left-click and drag to pan the images.
--   **Inspect Pixels:** Move the mouse over an image. The status bar will display:
-    -   The full path of the image under the cursor.
-    -   The scene coordinates `(x, y)`.
-    -   The RGB values at that coordinate for **every image** in the grid, identified by its label.
+-   **Zoom:** Mouse wheel zooms towards cursor.
+-   **Pan:** Left-click and drag.
+-   **Inspect Pixels:** Mouse over an image. Status bar shows:
+    -   Full path of image under cursor.
+    -   Scene coordinates `(x, y)`.
+    -   RGB/RGBA values at that coordinate for **every image** in the grid, identified by its label.
 
 ---
 
 ## Building a Standalone Application (macOS)
 
-You can package the Image Grid Viewer as a standalone macOS application (`.app` bundle) using PyInstaller. This allows you to distribute and run the application without needing a separate Python installation.
+Package as a standalone macOS `.app` bundle using PyInstaller for distribution without a separate Python install.
 
-**Prerequisites:**
-- You must be inside your activated virtual environment.
-- You must have the development dependencies installed, as described in the **Installation** section (`pip install -e ".[dev]"`).
+**Prerequisites:** Activated virtual environment with development dependencies (`pip install -e ".[dev]"`).
 
 **Build Process:**
 
-1.  The first time you build, or if you need to regenerate the build configuration, run the following command. This creates an `igridvu.spec` file which controls the build settings.
+1.  **First build/regenerate config:**
     ```bash
     pyinstaller run_app.py --name igridvu --windowed --noconfirm
     ```
 
-2.  **(Recommended)** For all subsequent builds, use the `igridvu.spec` file directly. This file has been optimized to exclude unused parts of the PySide6 library, significantly reducing the final application size.
+2.  **(Recommended) Subsequent builds (optimized):**
     ```bash
     pyinstaller igridvu.spec --noconfirm
     ```
 
-3.  Once the build process is complete, you will find the application bundle inside the `dist/` directory: `dist/igridvu.app`. You can drag this to your Applications folder and run it like any other macOS app.
+3.  Find `dist/igridvu.app`. Drag to Applications folder.
 
 ---
 
 ## Testing
 
-This project uses `pytest`. To run the test suite, ensure you have installed the project in editable mode with the `[dev]` extra, then run `pytest` from the project root:
+Uses `pytest`. Install in editable mode with `[dev]` extra, then run:
 
 ```bash
-# This command will discover and run all tests
 pytest
 ```
 
@@ -182,42 +175,39 @@ pytest
 
 ## Cleaning the Environment
 
-A helper script is provided to remove all generated files, including the virtual environment (`venv`), build artifacts (`build`, `dist`), test caches, and editable install metadata. This is useful when you want to reset your project to a clean state.
+Helper script removes generated files (`venv`, `build`, `dist`, caches, metadata).
 
-To run the cleanup script from the project root directory:
+To run:
 
 ```bash
-# Make the script executable (only needs to be done once)
 chmod +x scripts/clean.sh
-
-# Run the script
 ./scripts/clean.sh
 ```
 
 ---
 
 ## File Structure
-- `pyproject.toml`: The heart of the project, defining metadata, dependencies, and entry points.
-- `src/igridvu/`: The main application source code package.
-- `pytest.ini`: Configures the `pytest` test runner, ensuring it can find the source code in `src/`.
-  - `cli.py`: The command-line entry point.
-  - `main_window.py`: Defines the main `QMainWindow`, orchestrates the grid layout, and handles view synchronization and status bar updates.
-  - `zoomable_view.py`: Defines the custom `QGraphicsView` widget responsible for loading, displaying, and interacting with a single image (zoom, pan, pixel inspection).
-- `scripts/`: Helper scripts for development.
+- `pyproject.toml`: Project metadata, dependencies, entry points.
+- `src/igridvu/`: Main application source code.
+- `pytest.ini`: `pytest` configuration.
+  - `cli.py`: Command-line entry point.
+  - `main_window.py`: Main `QMainWindow`, grid layout, view synchronization, status bar updates.
+  - `zoomable_view.py`: Custom `QGraphicsView` for single image interaction (zoom, pan, pixel inspection).
+- `scripts/`: Development helper scripts.
 - `tests/`: Unit and integration tests.
-- `LICENSE`: The MIT License file for the project.
-- `README.md`: This documentation file.
+- `LICENSE`: MIT License.
+- `README.md`: This documentation.
 
-The viewer uses PySide6's `QPixmap` to load images, which supports most common image formats (PNG, JPEG, BMP, GIF, etc.).
+Uses PySide6's `QPixmap` for common image formats (PNG, JPEG, BMP, GIF, etc.).
 
 ---
 
 ## Future Vision
 
-This tool is designed for **comparative analysis**. Future development could include powerful features for these workflows:
+Designed for **comparative analysis**. Future features:
 
-*   **Image Difference Mode:** Select two images to overlay them with transparency or view a computed "visual diff" that highlights changes.
-*   **Metadata Integration:** Display key information from filenames (e.g., timestep, parameters) or EXIF data directly in the UI.
+*   **Image Difference Mode:** Overlay images or view computed "visual diffs" highlighting changes.
+*   **Metadata Integration:** Display key info from filenames (e.g., timestep, parameters) or EXIF data.
 
 ---
 
@@ -225,28 +215,25 @@ This tool is designed for **comparative analysis**. Future development could inc
 
 ### Installation Issues
 
--   **`SyntaxError` during `pip install`:** If you encounter a `SyntaxError` related to a `.tmpl.py` file within the `PySide6` package during installation, it is due to a known packaging issue where `pip` attempts to byte-compile a non-Python template file.
-
-    To resolve this, install the dependencies using the `--no-compile` flag:
+-   **`SyntaxError` during `pip install`:** Due to `PySide6` packaging issue. Use `--no-compile`:
     ```bash
     pip install --no-compile -e ".[dev]"
     ```
-    This flag prevents `pip` from running the problematic byte-compilation step without affecting the application's functionality.
 
 ### Runtime Image Loading
 
-The application will attempt to display an error message directly within the grid cell if an image cannot be loaded. Common messages include:
+Error messages display in grid cell if image fails to load:
 
--   `Not found`: The file path constructed from the prefix and suffix does not exist.
--   `Permission denied`: The application does not have the necessary rights to read the image file.
--   `File too large` / `Dimensions too large`: The image exceeds internal safety limits to prevent excessive memory usage.
--   `Unrecognized format` / `Cannot load`: The file is not a valid or supported image format, or it may be corrupted.
+-   `Not found`: File path does not exist.
+-   `Permission denied`: Insufficient read permissions.
+-   `File too large` / `Dimensions too large`: Exceeds internal safety limits.
+-   `Unrecognized format` / `Cannot load`: Invalid/corrupted image format.
 
-If images are not displaying correctly, first check the status bar by hovering over the cell to confirm the expected file path is correct.
+Check status bar by hovering over cell for expected file path.
 
 ---
 
 ## Author
-Davoud Shahlaei
+Dav0ud
 
 This project was created to help evaluate algorithm outputs and as a learning exercise in Python and PyQt (now switched to PySide6). Feedback and contributions are welcome!

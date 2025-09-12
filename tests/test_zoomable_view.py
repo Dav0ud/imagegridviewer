@@ -34,7 +34,7 @@ def test_view_with_valid_image(tmp_path: Path, qtbot, create_dummy_image):
     label = "test_image"
 
     # Create the view and check its state
-    view = ZoomableView(str(img_path), label)
+    view = ZoomableView(label_text=label, img_path=str(img_path))
     qtbot.addWidget(view)
 
     assert view.label_text == label, "The label text should be stored correctly"
@@ -50,7 +50,7 @@ def test_view_file_not_found(qtbot):
     by displaying an error message.
     """
     invalid_path = "non_existent_dir/non_existent_image.jpg"
-    view = ZoomableView(invalid_path, "test_label")
+    view = ZoomableView(label_text="test_label", img_path=invalid_path)
     qtbot.addWidget(view)
 
     assert view._pixmap_item is None, "Pixmap item should be null for a non-existent path"
@@ -69,7 +69,7 @@ def test_view_permission_denied(tmp_path: Path, qtbot, create_dummy_image):
     if os.access(str(img_path), os.R_OK):
         pytest.skip("os.chmod has no effect on read permissions on this system (e.g., Windows)")
 
-    view = ZoomableView(str(img_path), "test_label")
+    view = ZoomableView(label_text="test_label", img_path=str(img_path))
     qtbot.addWidget(view)
 
     assert view._pixmap_item is None
@@ -90,7 +90,7 @@ def test_view_file_too_large(tmp_path: Path, qtbot, monkeypatch: pytest.MonkeyPa
     large_file_path = tmp_path / "large_file.txt"
     large_file_path.write_text("This file is definitely larger than 10 bytes")
 
-    view = ZoomableView(str(large_file_path), "test_label")
+    view = ZoomableView(label_text="test_label", img_path=str(large_file_path))
     qtbot.addWidget(view)
 
     assert view._pixmap_item is None
@@ -102,7 +102,7 @@ def test_view_dimensions_too_large(tmp_path: Path, qtbot, monkeypatch: pytest.Mo
     monkeypatch.setattr(ZoomableView, "MAX_IMAGE_DIMENSION", 5)
     img_path = create_dummy_image(tmp_path, width=10, height=10)
 
-    view = ZoomableView(str(img_path), "test_label")
+    view = ZoomableView(label_text="test_label", img_path=str(img_path))
     qtbot.addWidget(view)
 
     assert view._pixmap_item is None
@@ -116,7 +116,7 @@ def test_view_unrecognized_format(tmp_path: Path, qtbot):
     fake_image_path = tmp_path / "not_an_image.png"
     fake_image_path.write_text("this is just a text file")
 
-    view = ZoomableView(str(fake_image_path), "test_label")
+    view = ZoomableView(label_text="test_label", img_path=str(fake_image_path))
     qtbot.addWidget(view)
 
     assert view._pixmap_item is None
@@ -131,7 +131,7 @@ def test_view_corrupted_image(tmp_path: Path, qtbot):
     # Valid PNG header, but followed by junk data instead of valid IHDR chunk
     corrupted_file.write_bytes(b'\x89PNG\r\n\x1a\n' + b'junk' * 10)
 
-    view = ZoomableView(str(corrupted_file), "test_label")
+    view = ZoomableView(label_text="test_label", img_path=str(corrupted_file))
     qtbot.addWidget(view)
 
     assert view._pixmap_item is None
@@ -143,7 +143,7 @@ def test_view_corrupted_image(tmp_path: Path, qtbot):
 def test_zoomable_view_emits_signal_on_zoom(tmp_path: Path, qtbot, create_dummy_image):
     """Tests that wheel events on ZoomableView trigger the viewRectChanged signal."""
     img_path = create_dummy_image(tmp_path, width=200, height=200)
-    view = ZoomableView(str(img_path), "test_label")
+    view = ZoomableView(label_text="test_label", img_path=str(img_path))
     qtbot.addWidget(view)
     view.show()  # The view needs to be shown to have a valid viewport
 
@@ -168,7 +168,7 @@ def test_view_aspect_ratio_methods(tmp_path: Path, qtbot, create_dummy_image):
     """Tests the aspect-ratio-related methods like heightForWidth and sizeHint."""
     # 1. Test with a valid image (aspect ratio 2:1)
     img_path = create_dummy_image(tmp_path, width=200, height=100)
-    view_with_image = ZoomableView(str(img_path), "test")
+    view_with_image = ZoomableView(label_text="test", img_path=str(img_path))
     qtbot.addWidget(view_with_image)
 
     assert view_with_image.hasHeightForWidth() is True, "Should have height for width with an image"
@@ -180,7 +180,7 @@ def test_view_aspect_ratio_methods(tmp_path: Path, qtbot, create_dummy_image):
     assert hint.width() / hint.height() == pytest.approx(2.0)
 
     # 2. Test with no image (e.g., file not found)
-    view_no_image = ZoomableView("nonexistent.png", "test")
+    view_no_image = ZoomableView(label_text="test", img_path="nonexistent.png")
     qtbot.addWidget(view_no_image)
 
     assert view_no_image.hasHeightForWidth() is False, "Should not have height for width without an image"
@@ -199,7 +199,7 @@ def test_view_get_color_at(tmp_path: Path, qtbot):
     image.setPixelColor(0, 0, red)
     image.save(str(img_path))
 
-    view = ZoomableView(str(img_path), "test")
+    view = ZoomableView(label_text="test", img_path=str(img_path))
     qtbot.addWidget(view)
     view.show()
     # Wait for the view to be shown and for the automatic fitInView to complete.
@@ -227,7 +227,7 @@ def test_view_panning_emits_signal(tmp_path: Path, qtbot, create_dummy_image):
     """Tests that panning the view via mouse drag emits the viewRectChanged signal."""
     # Create an image larger than the default view size to ensure scrollbars are active
     img_path = create_dummy_image(tmp_path, width=400, height=400)
-    view = ZoomableView(str(img_path), "test_label")
+    view = ZoomableView(label_text="test_label", img_path=str(img_path))
     qtbot.addWidget(view)
     view.resize(200, 200)  # Set a small view size
     view.show()
@@ -247,3 +247,52 @@ def test_view_panning_emits_signal(tmp_path: Path, qtbot, create_dummy_image):
         qtbot.mouseRelease(view.viewport(), Qt.LeftButton, pos=end_pos)
 
     assert blocker.signal_triggered, "viewRectChanged signal should be emitted on pan"
+
+
+def test_view_channel_and_restore(tmp_path: Path, qtbot, create_dummy_image):
+    """Tests viewing a single channel and restoring the original image."""
+    img_path = create_dummy_image(tmp_path, width=10, height=10)
+    view = ZoomableView(label_text="test_color", img_path=str(img_path))
+    qtbot.addWidget(view)
+    view.show()
+    qtbot.waitActive(view)
+
+    original_image = view._image.copy()
+    original_pixel_color = original_image.pixelColor(0, 0)
+
+    # Test Red Channel
+    view.view_channel("Red")
+    assert view._current_channel == "Red"
+    assert "Red" in view._title_label.text()
+    assert view._image.isGrayscale()
+    assert view._original_image is not None
+    channel_pixel_value = view._image.pixelColor(0, 0).red()
+    assert channel_pixel_value == original_pixel_color.red()
+    view.restore_original()
+    assert view._current_channel is None
+
+    # Test Green Channel
+    view.view_channel("Green")
+    assert view._current_channel == "Green"
+    assert "Green" in view._title_label.text()
+    assert view._image.isGrayscale()
+    channel_pixel_value = view._image.pixelColor(0, 0).green()
+    assert channel_pixel_value == original_pixel_color.green()
+    view.restore_original()
+    assert view._current_channel is None
+
+    # Test Blue Channel
+    view.view_channel("Blue")
+    assert view._current_channel == "Blue"
+    assert "Blue" in view._title_label.text()
+    assert view._image.isGrayscale()
+    channel_pixel_value = view._image.pixelColor(0, 0).blue()
+    assert channel_pixel_value == original_pixel_color.blue()
+    view.restore_original()
+    assert view._current_channel is None
+
+    # Final check of restored image
+    assert view._title_label.text() == "test_color"
+    assert not view._image.isGrayscale()
+    assert view._original_image is None
+    assert view._image.constBits() == original_image.constBits()

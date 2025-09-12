@@ -5,17 +5,21 @@ A QGraphicsView that can zoom and pan, and sync with other views.
 import os
 from typing import Optional, cast
 from pathlib import Path
+import ctypes
 
-from PySide6.QtWidgets import (QFrame, QGraphicsView, QGraphicsScene,
-                             QLabel, QSizePolicy, QGraphicsPixmapItem)
-from PySide6.QtGui import (QPixmap, QPainter, QImageReader, QColor, QResizeEvent, QImage)
-from PySide6.QtCore import Qt, Signal as pyqtSignal, QRectF, QPointF, QSize
+from PySide6.QtWidgets import (
+    QFrame, QGraphicsView, QGraphicsScene,
+    QLabel, QSizePolicy, QGraphicsPixmapItem, QMenu
+)
+from PySide6.QtGui import (
+    QPixmap, QPainter, QImageReader, QColor, QResizeEvent, QImage, QAction, qRgb
+)
+from PySide6.QtCore import Qt, Signal as pyqtSignal, QRectF, QPointF, QSize, QPoint
 
 
 class ZoomableView(QGraphicsView):
     """A QGraphicsView that can zoom and pan, and sync with other views."""
     # Signal emitted when the view changes (zoom or pan)
-    # It carries the new visible rectangle in scene coordinates.
     viewRectChanged = pyqtSignal(QRectF)
     # Signal for hover events to update the status bar
     hovered = pyqtSignal(str)
@@ -25,88 +29,100 @@ class ZoomableView(QGraphicsView):
     MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB
     MAX_IMAGE_DIMENSION = 10000  # Max 10k pixels for width or height
 
-    def __init__(self, img_path: str, label_text: str, error: Optional[str] = None):
+    def __init__(self, label_text: str, img_path: Optional[str] = None,
+                 image: Optional[QImage] = None, error: Optional[str] = None):
         super().__init__()
-        self.img_path = img_path
+        self.img_path = img_path or "in-memory"
         self.label_text = label_text
         self._scene = QGraphicsScene(self)
         self.setScene(self._scene)
         self._pixmap_item: Optional[QGraphicsPixmapItem] = None
-        self._image: Optional[QImage] = None  # Store QImage for fast pixel access
+        self._image: Optional[QImage] = image
+        self._original_image: Optional[QImage] = None
+        self._current_channel: Optional[str] = None
         self._is_handling_wheel = False
         self._image_aspect_ratio = 0.0
+
+        self._setup_ui()
 
         if error:
             self._show_error_message(error)
         else:
             self._load_safe_pixmap()
 
-        if self.has_image():
+        if self.has_image() and self._pixmap_item:
             pixmap_size = self._pixmap_item.pixmap().size()
-            if pixmap_size.height() > 0 and self._pixmap_item:
+            if pixmap_size.height() > 0:
                 self._image_aspect_ratio = pixmap_size.width() / pixmap_size.height()
 
         if self._image_aspect_ratio > 0.0:
             self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
+        self.horizontalScrollBar().valueChanged.connect(self._emit_view_rect_changed)
+        self.verticalScrollBar().valueChanged.connect(self._emit_view_rect_changed)
+
+    def _setup_ui(self):
+        """Initialize UI components and view settings."""
         self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
         self.setResizeAnchor(QGraphicsView.AnchorViewCenter)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setFrameStyle(QFrame.StyledPanel)
-        # Use ScrollHandDrag for intuitive panning with the left mouse button
         self.setDragMode(QGraphicsView.ScrollHandDrag)
         self.setRenderHint(QPainter.SmoothPixmapTransform, True)
         self.setMouseTracking(True)
 
-        # Create and style the overlay title label
-        self._title_label = QLabel(label_text, self)
-        self._title_label.setAlignment(Qt.AlignCenter)
-        self._title_label.setWordWrap(True)
-        # Style it to be visible over any image content
-        self._title_label.setStyleSheet(
+        self._title_label = self._create_overlay_label(self.label_text)
+        self._pixel_info_label = self._create_overlay_label()
+
+    def _create_overlay_label(self, text: str = "") -> QLabel:
+        """Creates a styled QLabel for overlaying on the view."""
+        label = QLabel(text, self)
+        label.setAlignment(Qt.AlignCenter)
+        label.setWordWrap(True)
+        label.setStyleSheet(
             "background-color: rgba(0, 0, 0, 160);"
             "color: white;"
             "padding: 4px;"
             "border-radius: 4px;"
         )
-        # Let mouse events pass through the label to the view underneath
-        self._title_label.setAttribute(Qt.WA_TransparentForMouseEvents)
+        label.setAttribute(Qt.WA_TransparentForMouseEvents)
+        return label
 
-        # Connect scrollbar signals to detect panning
-        self.horizontalScrollBar().valueChanged.connect(self._emit_view_rect_changed)
-        self.verticalScrollBar().valueChanged.connect(self._emit_view_rect_changed)
+    def set_pixel_info(self, text: str):
+        self._pixel_info_label.setText(text)
 
     def has_image(self) -> bool:
-        """Returns True if a valid pixmap was loaded."""
         return self._pixmap_item is not None
 
     def _show_error_message(self, error_msg: str):
-        """Displays a given error message in the scene."""
         filename = Path(self.img_path).name
         text_item = self._scene.addText(f"{error_msg}\n{filename}")
         text_item.setDefaultTextColor(QColor(Qt.red))
 
     def _load_safe_pixmap(self):
-        """Safely loads the pixmap, checking for potential resource issues."""
+        if self._image:  # Image was provided directly
+            pixmap = QPixmap.fromImage(self._image)
+            self._pixmap_item = self._scene.addPixmap(pixmap)
+            return
+
         error_msg = self._get_loading_error()
         if error_msg:
             self._show_error_message(error_msg)
-        else:
-            # All checks passed. Load QImage first to be the source of truth
-            # for pixel data, which is more reliable than pixmap.toImage().
+        elif self.img_path:
             self._image = QImage(self.img_path)
-            # Create QPixmap from the QImage for display.
-            pixmap = QPixmap.fromImage(self._image)
-            self._pixmap_item = self._scene.addPixmap(pixmap)
+            if self._image.isNull():
+                self._show_error_message("Cannot load\n(Corrupted?)")
+            else:
+                pixmap = QPixmap.fromImage(self._image)
+                self._pixmap_item = self._scene.addPixmap(pixmap)
 
     def _get_loading_error(self) -> Optional[str]:
-        """
-        Runs all pre-load checks and returns an error message string if any fail.
-        Returns None if the image is safe to load.
-        """
+        if not self.img_path or self.img_path == "in-memory":
+            return "Invalid path"
+
         img_path = Path(self.img_path)
-        if not img_path.exists():
+        if not img_path.is_file():
             return "Not found"
         if not os.access(str(img_path), os.R_OK):
             return "Permission\ndenied"
@@ -127,66 +143,149 @@ class ZoomableView(QGraphicsView):
         if img_dim.width() > self.MAX_IMAGE_DIMENSION or img_dim.height() > self.MAX_IMAGE_DIMENSION:
             return f"Dimensions too large\n({img_dim.width()}x{img_dim.height()})"
 
-        # Final check by attempting to load into a QImage.
-        image = QImage(str(img_path))
-        if image.isNull():
-            return "Cannot load\n(Corrupted?)"
-
         return None
 
+    def contextMenuEvent(self, event):
+        if not self.has_image() or not self._image:
+            return
+
+        menu = QMenu(self)
+        if self._current_channel:
+            restore_action = QAction("Restore Original", self)
+            restore_action.triggered.connect(self.restore_original)
+            menu.addAction(restore_action)
+        else:
+            self._add_channel_menu(menu)
+        
+        menu.exec(event.globalPos())
+
+    def _add_channel_menu(self, menu: QMenu):
+        if not self._image:
+            return
+
+        channel_menu = menu.addMenu("View Channel")
+        
+        channels = []
+        if not self._image.isGrayscale():
+            channels.extend(["Red", "Green", "Blue"])
+        if self._image.hasAlphaChannel():
+            channels.append("Alpha")
+
+        if not channels:
+            channel_menu.setEnabled(False)
+            return
+
+        for channel_name in channels:
+            action = QAction(channel_name, self)
+            action.triggered.connect(lambda checked=False, name=channel_name: self.view_channel(name))
+            channel_menu.addAction(action)
+
+    def view_channel(self, channel_name: str):
+        if not self._image:
+            return
+
+        if not self._original_image:
+            self._original_image = self._image.copy()
+
+        channel_image = self.get_channel_image(channel_name)
+        if channel_image:
+            self._image = channel_image
+            self._pixmap_item.setPixmap(QPixmap.fromImage(self._image))
+            self._title_label.setText(f"{self.label_text} ({channel_name})")
+            self._current_channel = channel_name
+
+    def restore_original(self):
+        if not self._original_image:
+            return
+
+        self._image = self._original_image
+        self._pixmap_item.setPixmap(QPixmap.fromImage(self._image))
+        self._title_label.setText(self.label_text)
+        self._original_image = None
+        self._current_channel = None
+
+    def get_channel_image(self, channel_name: str) -> Optional[QImage]:
+        if not self._image:
+            return None
+
+        if self._image.isGrayscale():
+            return self._image.copy()
+
+        channel_map = {"Red": 2, "Green": 1, "Blue": 0, "Alpha": 3}
+        channel_index = channel_map.get(channel_name)
+
+        if channel_index is None or (channel_index == 3 and not self._image.hasAlphaChannel()):
+            return None
+
+        width, height = self._image.width(), self._image.height()
+        
+        # Create an 8-bit indexed image for the channel
+        channel_img = QImage(width, height, QImage.Format_Indexed8)
+        color_table = [qRgb(i, i, i) for i in range(256)]
+        channel_img.setColorTable(color_table)
+
+        # Fast pixel manipulation using memory views
+        source_format = self._image.format()
+        
+        # Ensure source image is in a format we can process
+        if source_format not in (QImage.Format_RGB32, QImage.Format_ARGB32, QImage.Format_ARGB32_Premultiplied):
+             self._image = self._image.convertToFormat(QImage.Format_ARGB32)
+
+        bytes_per_pixel = self._image.depth() // 8
+        
+        # Get read-only access to the source image buffer
+        source_bits = self._image.constBits()
+        
+        # Get write access to the destination image buffer
+        dest_bits = channel_img.bits()
+        
+        # Create numpy-like array views from the memory buffers
+        source_array = (ctypes.c_uint8 * len(source_bits)).from_buffer_copy(source_bits)
+        dest_array = (ctypes.c_uint8 * len(dest_bits)).from_buffer(dest_bits)
+
+        # Iterate over each row and process pixels
+        for y in range(height):
+            source_line_start = y * self._image.bytesPerLine()
+            dest_line_start = y * channel_img.bytesPerLine()
+            
+            for x in range(width):
+                source_idx = source_line_start + x * bytes_per_pixel + channel_index
+                dest_idx = dest_line_start + x
+                dest_array[dest_idx] = source_array[source_idx]
+
+        return channel_img
+
     def showEvent(self, event):
-        """Fit the image in the view when the widget is first shown."""
         super().showEvent(event)
         if self.has_image():
             self.fitInView(self._pixmap_item, Qt.KeepAspectRatio)
 
     def resizeEvent(self, event: QResizeEvent):
-        """Handle widget resize to keep the title label positioned correctly."""
         super().resizeEvent(event)
-        # Give the label a small margin from the view's edges
         margin = 5
-        # Set the label's width to the view's width minus margins
         self._title_label.setFixedWidth(self.width() - (2 * margin))
-        # Move the label to the top, with a margin
         self._title_label.move(margin, margin)
 
+        self._pixel_info_label.setFixedWidth(self.width() - (2 * margin))
+        label_height = self._pixel_info_label.sizeHint().height()
+        self._pixel_info_label.move(margin, self.height() - label_height - margin)
+
     def wheelEvent(self, event):
-        """Handle zooming with the mouse wheel."""
-        # Use a flag to prevent re-entrant calls and to control signal emission.
         if not self.has_image() or self._is_handling_wheel:
             return
 
         self._is_handling_wheel = True
-
-        zoom_in_factor = 1.15
-        zoom_out_factor = 1 / zoom_in_factor
-
-        # The scale() operation triggers internal updates, including for the
-        # scrollbars. We let this happen naturally without blocking signals.
-        if event.angleDelta().y() > 0:
-            self.scale(zoom_in_factor, zoom_in_factor)
-        else:
-            self.scale(zoom_out_factor, zoom_out_factor)
-
-        # The scale() operation is now complete. We can release the flag.
+        zoom_factor = 1.15 if event.angleDelta().y() > 0 else 1 / 1.15
+        self.scale(zoom_factor, zoom_factor)
         self._is_handling_wheel = False
-
-        # The scrollbar's valueChanged signal might have fired during scale(),
-        # but our flag prevented _emit_view_rect_changed from running.
-        # Now, we emit the signal manually, ensuring it happens exactly once
-        # after the zoom operation is fully complete.
         self._emit_view_rect_changed()
 
     def _emit_view_rect_changed(self):
-        """Emits the signal with the current view rect."""
-        # The flag prevents emission during a wheel event; the handler emits once at the end.
         if self.signalsBlocked() or self._is_handling_wheel:
             return
-        # mapToScene gives the rectangle of the viewport in scene coordinates
         self.viewRectChanged.emit(self.mapToScene(self.viewport().rect()).boundingRect())
 
     def setViewRect(self, rect: QRectF):
-        """Sets the view to a specific rectangle, blocking signals to prevent loops."""
         if not self.has_image() or rect.isNull():
             return
 
@@ -195,47 +294,56 @@ class ZoomableView(QGraphicsView):
         self.blockSignals(False)
 
     def sizeHint(self) -> QSize:
-        """Provides a size hint that respects the image's aspect ratio."""
         if self._image_aspect_ratio > 0:
-            # Provide a reasonable default size hint.
             base_width = 250
             return QSize(base_width, int(base_width / self._image_aspect_ratio))
         return super().sizeHint()
 
     def hasHeightForWidth(self) -> bool:
-        """Indicates that the widget's preferred height depends on its width."""
         return self._image_aspect_ratio > 0.0
 
     def heightForWidth(self, width: int) -> int:
-        """Returns the preferred height for a given width to maintain aspect ratio."""
         if self.hasHeightForWidth():
             return int(width / self._image_aspect_ratio)
         return super().heightForWidth(width)
 
     def get_color_at(self, scene_pos: QPointF) -> Optional[QColor]:
-        """Gets the QColor of the pixel at a given scene coordinate."""
-        if not self._image or not self.has_image():
+        if not self._image or not self.has_image() or not self._pixmap_item:
             return None
 
-        # Convert scene position to the pixmap item's local coordinates (image pixels)
-        item_pos = cast(QGraphicsPixmapItem, self._pixmap_item).mapFromScene(scene_pos)
+        item_pos = self._pixmap_item.mapFromScene(scene_pos)
+        
+        # Explicitly floor the coordinates to get the integer pixel position
+        pixel_x = int(item_pos.x())
+        pixel_y = int(item_pos.y())
+        
+        # Create a QPoint from the floored integers
+        image_pixel_pos = QPoint(pixel_x, pixel_y)
 
-        # Check if the coordinate is within the image's bounds
-        if not self._image.rect().contains(item_pos.toPoint()):
+        if not self._image.rect().contains(image_pixel_pos):
             return None
 
-        return self._image.pixelColor(item_pos.toPoint())
+        return self._image.pixelColor(image_pixel_pos)
 
     def mouseMoveEvent(self, event):
         super().mouseMoveEvent(event)
         self.mouseMovedAtScenePos.emit(self.mapToScene(event.position().toPoint()))
 
     def enterEvent(self, event):
-        """Emits the full image path when the mouse enters the view."""
         self.hovered.emit(self.img_path)
         super().enterEvent(event)
 
     def leaveEvent(self, event):
-        """Emits an empty string when the mouse leaves the view."""
         self.hovered.emit("")
+        self.set_pixel_info("")
         super().leaveEvent(event)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton and self.dragMode() == QGraphicsView.ScrollHandDrag:
+            self.setCursor(Qt.ClosedHandCursor)
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton and self.dragMode() == QGraphicsView.ScrollHandDrag:
+            self.setCursor(Qt.OpenHandCursor)
+        super().mouseReleaseEvent(event)
