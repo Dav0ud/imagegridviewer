@@ -141,6 +141,18 @@ Running `igridvu` without arguments opens a welcome screen. From here, you can:
 
 ---
 
+## Architecture
+
+The software architecture for this project is documented using the [C4 model](https://c4model.com/). The diagrams are defined as code using the Structurizr DSL, which allows them to be version-controlled alongside the source code.
+
+-   **Source File:** `docs/c4_model.dsl`
+
+### Viewing the Diagrams
+
+The diagrams can be rendered by copying the contents of the `.dsl` file into the official, free **[Structurizr DSL online editor](https://structurizr.com/dsl)**.
+
+---
+
 ## Building a Standalone Application (macOS)
 
 Package as a standalone macOS `.app` bundle using PyInstaller for distribution without a separate Python install.
@@ -189,6 +201,7 @@ chmod +x scripts/clean.sh
 ## File Structure
 - `pyproject.toml`: Project metadata, dependencies, entry points.
 - `src/igridvu/`: Main application source code.
+- `docs/`: Contains architecture diagrams and documentation.
 - `pytest.ini`: `pytest` configuration.
   - `cli.py`: Command-line entry point.
   - `main_window.py`: Main `QMainWindow`, grid layout, view synchronization, status bar updates.
