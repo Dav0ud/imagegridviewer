@@ -1,0 +1,33 @@
+@startuml create_examples_diagram
+
+!theme vibrant
+
+title Code Diagram for create_examples.py
+
+package "igridvu" {
+    package "create_examples.py" <<File>> {
+        class create_example_dataset <<function>> {
+            + create_example_dataset(base_dir: Path)
+        }
+
+        class COLORS <<variable>>
+        class SUFFIXES <<variable>>
+    }
+}
+
+package "Python Libs" {
+    class Path
+    class os
+}
+
+package "PySide6" {
+    class QImage
+    class QPainter
+    class QColor
+}
+
+create_example_dataset --> Path : Uses
+create_example_dataset --> QImage : Creates
+create_example_dataset --> QPainter : Uses
+
+@enduml

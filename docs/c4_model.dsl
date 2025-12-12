@@ -16,21 +16,27 @@ workspace "Image Grid Viewer" "A C4 model for the Image Grid Viewer desktop appl
                 # Components within the Desktop Application
                 cliHandler = component "CLI Handler" "Parses command-line arguments and starts the application." "Python" {
                     tags "Component"
+                    url "https://github.com/Dav0ud/imagegridviewer/blob/master/src/igridvu/cli.py"
                 }
                 mainWindow = component "Main Window" "The core GUI window. Manages the grid layout, menus, and status bar. Orchestrates other components." "Python, PySide6" {
                     tags "Component"
+                    url "https://github.com/Dav0ud/imagegridviewer/blob/master/src/igridvu/main_window.py"
                 }
                 zoomableView = component "Zoomable View" "A custom widget that displays a single image and handles zoom, pan, and pixel inspection." "Python, PySide6" {
                     tags "Component"
+                    url "https://github.com/Dav0ud/imagegridviewer/blob/master/src/igridvu/zoomable_view.py"
                 }
                 suffixEditor = component "Suffix Editor" "A dialog for creating and editing the image suffix list file." "Python, PySide6" {
                     tags "Component"
+                    url "https://github.com/Dav0ud/imagegridviewer/blob/master/src/igridvu/suffix_editor.py"
                 }
                 exampleCreator = component "Example Creator" "A utility to generate a sample dataset on the file system." "Python" {
                     tags "Component"
+                    url "https://github.com/Dav0ud/imagegridviewer/blob/master/src/igridvu/create_examples.py"
                 }
                 config = component "Configuration" "Holds shared application settings and constants." "Python" {
                     tags "Component"
+                    url "https://github.com/Dav0ud/imagegridviewer/blob/master/src/igridvu/config.py"
                 }
             }
         }

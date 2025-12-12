@@ -1,0 +1,48 @@
+@startuml zoomable_view_diagram
+
+!theme vibrant
+
+title Code Diagram for zoomable_view.py
+
+package "igridvu" {
+    package "zoomable_view.py" <<File>> {
+        class ZoomableView extends QGraphicsView {
+            .. Signals ..
+            # viewRectChanged: QRectF
+            # hovered: str
+            # mouseMovedAtScenePos: QPointF
+            .. Public Methods ..
+            + __init__(label_text, img_path, ...)
+            + set_pixel_info(text: str)
+            + has_image(): bool
+            + view_channel(channel_name: str)
+            + restore_original()
+            + get_color_at(scene_pos: QPointF): QColor
+            .. Event Handlers ..
+            # wheelEvent(event)
+            # resizeEvent(event)
+            # contextMenuEvent(event)
+            # mouseMoveEvent(event)
+            .. Private Methods ..
+            - _load_safe_pixmap()
+            - _setup_ui()
+            - _emit_view_rect_changed()
+        }
+    }
+}
+
+package "PySide6" {
+    class QGraphicsView
+    class QGraphicsScene
+    class QGraphicsPixmapItem
+    class QLabel
+    class QImage
+    class QPixmap
+}
+
+ZoomableView --|> QGraphicsView
+ZoomableView *-- QGraphicsScene : contains
+ZoomableView *-- QGraphicsPixmapItem : contains
+ZoomableView *-- QLabel : contains
+
+@enduml

@@ -1,0 +1,53 @@
+@startuml main_window_diagram
+
+!theme vibrant
+
+title Code Diagram for main_window.py
+
+package "igridvu" {
+    package "main_window.py" <<File>> {
+        class ImageGrid extends QMainWindow {
+            + views: List<ZoomableView>
+            + __init__(pre_path, list_of_suffix, ...)
+            + initUI()
+            .. Private Methods ..
+            - _populate_grid()
+            - _create_menu_bar()
+            - _open_suffix_editor()
+            - _prompt_open_dataset()
+            - _save_snapshot()
+            .. Slots ..
+            + sync_views(rect: QRectF)
+            + update_status_bar(text: str)
+            + _update_pixel_info(scene_pos: QPointF)
+        }
+    }
+
+    package "zoomable_view.py" <<File>> {
+        class ZoomableView
+    }
+    package "suffix_editor.py" <<File>> {
+        class SuffixEditorDialog
+    }
+    package "create_examples.py" <<File>> {
+        class create_example_dataset <<function>>
+    }
+     package "config.py" <<File>> {
+        class MAX_IMAGES <<variable>>
+    }
+}
+
+package "PySide6" {
+    class QMainWindow
+    class QWidget
+    class QGridLayout
+    class QAction
+}
+
+ImageGrid o-- "many" ZoomableView : contains
+ImageGrid ..> SuffixEditorDialog : Creates
+ImageGrid ..> create_example_dataset : Calls
+ImageGrid ..> MAX_IMAGES : Reads
+ImageGrid --|> QMainWindow
+
+@enduml

@@ -1,0 +1,32 @@
+@startuml suffix_editor_diagram
+
+!theme vibrant
+
+title Code Diagram for suffix_editor.py
+
+package "igridvu" {
+    package "suffix_editor.py" <<File>> {
+        class SuffixEditorDialog extends QDialog {
+            + __init__(suffix_file_path, max_suffixes, ...)
+            .. Private Methods ..
+            - _load_suffixes()
+            - _add_suffix()
+            - _remove_suffix()
+            - _save_and_accept()
+        }
+    }
+}
+
+package "PySide6" {
+    class QDialog
+    class QListWidget
+    class QPushButton
+    class QDialogButtonBox
+}
+
+SuffixEditorDialog --|> QDialog
+SuffixEditorDialog o-- QListWidget
+SuffixEditorDialog o-- QPushButton
+SuffixEditorDialog o-- QDialogButtonBox
+
+@enduml

@@ -1,0 +1,16 @@
+@startuml config_diagram
+
+!theme vibrant
+
+title Code Diagram for config.py
+
+package "igridvu" {
+    package "config.py" <<File>> {
+        class MAX_IMAGES <<variable>> {
+            .. Shared constant ..
+            + MAX_IMAGES = 30
+        }
+    }
+}
+
+@enduml

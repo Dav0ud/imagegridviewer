@@ -1,0 +1,47 @@
+@startuml cli_diagram
+
+!theme vibrant
+
+title Code Diagram for cli.py
+
+package "igridvu" {
+    package "cli.py" <<File>> {
+        class main <<function>> {
+            .. Main Entry Point ..
+            + main()
+        }
+    }
+
+    package "main_window.py" <<File>> {
+        class ImageGrid {
+        }
+    }
+
+    package "config.py" <<File>> {
+        class MAX_IMAGES <<variable>> {
+        }
+    }
+}
+
+package "Python Libs" {
+    class argparse
+    class sys
+    class Path
+    class islice
+}
+
+package "PySide6" {
+    class QApplication
+}
+
+
+main --> argparse : Uses
+main --> sys : Uses
+main --> Path : Uses
+main --> islice : Uses
+
+main --> QApplication : Instantiates
+main --> ImageGrid : Instantiates
+main --> MAX_IMAGES : Reads
+
+@enduml

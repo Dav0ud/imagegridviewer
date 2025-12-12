@@ -143,13 +143,29 @@ Running `igridvu` without arguments opens a welcome screen. From here, you can:
 
 ## Architecture
 
-The software architecture for this project is documented using the [C4 model](https://c4model.com/). The diagrams are defined as code using the Structurizr DSL, which allows them to be version-controlled alongside the source code.
+The software architecture for this project is documented using the [C4 model](https://c4model.com/).
 
--   **Source File:** `docs/c4_model.dsl`
+### High-Level Architecture (Levels 1-3)
 
-### Viewing the Diagrams
+The high-level diagrams (System Context, Containers, Components) are defined as code using the Structurizr DSL. This allows them to be version-controlled alongside the source code.
 
-The diagrams can be rendered by copying the contents of the `.dsl` file into the official, free **[Structurizr DSL online editor](https://structurizr.com/dsl)**.
+-   **C4 Model Source:** `docs/c4_model.dsl`
+-   **Viewing:** The diagrams can be rendered by copying the contents of the `.dsl` file into the official, free **[Structurizr DSL online editor](https://structurizr.com/dsl)**.
+
+### Code-Level Diagrams (Level 4)
+
+For a more detailed view of the code structure within each component, PlantUML diagrams are available. These diagrams correspond to Level 4 of the C4 model.
+
+-   `docs/code_cli.puml`
+-   `docs/code_config.puml`
+-   `docs/code_create_examples.puml`
+-   `docs/code_main_window.puml`
+-   `docs/code_suffix_editor.puml`
+-   `docs/code_zoomable_view.puml`
+
+**Viewing:** To view these diagrams, copy the content of any `.puml` file and paste it into a free online PlantUML editor, such as:
+-   [PlantUML Web Server](http://www.plantuml.com/plantuml)
+-   [PlantText](https://www.planttext.com/)
 
 ---
 
